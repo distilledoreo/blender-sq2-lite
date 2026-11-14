@@ -31,7 +31,7 @@ jobs:
         run: |
           git clone --depth 1 -b v5.2.3 https://projects.blender.org/blender/blender.git C:\b
           cd C:\b
-          make.bat update
+          echo y | make.bat update
 
       - name: Copy SQ2 patches into source
         shell: pwsh
