@@ -31,7 +31,7 @@ jobs:
         run: |
           git clone --depth 1 -b v5.2.3 https://projects.blender.org/blender/blender.git C:\b
           cd C:\b
-          cmd //c make.bat update
+          make.bat update
 
       - name: Copy SQ2 patches into source
         shell: pwsh
@@ -40,20 +40,21 @@ jobs:
           Copy-Item custom-driver/eevee-unclosed/blender_eevee_sq2_fallback.patch C:\b\eevee_sq2.patch -Force
           Write-Host "APPLY BY HAND in later step: search 30.0.3820 + epoxy_gl_version() >= 43 (see patch comments). Lite boots without patch; patch only lifts the Gen2 block."
 
-      - name: Configure LITE (Release, no USD/tests/GPU backends)
+      - name: Configure + Build LITE
         shell: cmd
         working-directory: C:\b
-        run: cmd //c make.bat lite BUILD_DIR=build_lite
+        run: make.bat lite
 
-      - name: Build LITE
-        shell: pwsh
-        working-directory: C:\b
-        run: cmake --build build_lite --config Release -j 4
-
-      - name: Pack portable
+      - name: Discover build dir + Pack portable
         shell: pwsh
         run: |
-          Compress-Archive -Path C:\b\build_lite\bin\Release\* -DestinationPath sq2-lite-arm64.zip -Force
+          Get-ChildItem C:\b -Directory -Filter "build*" | Format-Table Name, LastWriteTime
+          $bd = (Get-ChildItem C:\b -Directory -Filter "build*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
+          Write-Host "BUILD_DIR=$bd"
+          "BUILD_DIR=$bd" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $rel = Join-Path $bd "bin\Release"
+          Get-ChildItem $rel | Select-Object -First 10
+          Compress-Archive -Path "$rel\*" -DestinationPath sq2-lite-arm64.zip -Force
           Get-ChildItem sq2-lite-arm64.zip
 
       - uses: actions/upload-artifact@v4
