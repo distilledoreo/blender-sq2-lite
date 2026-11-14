@@ -57,8 +57,14 @@ jobs:
           if (-not $bd) { $bd = (Get-ChildItem C:\, C:\b -Directory -Filter "build*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName }
           Write-Host "BUILD_DIR=$bd"
           "BUILD_DIR=$bd" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Get-ChildItem $bd | Format-Table Name, LastWriteTime
+          Get-ChildItem (Join-Path $bd "bin") -ErrorAction SilentlyContinue | Format-Table Name, LastWriteTime
+          # MSBuild: bin\Release, Ninja: bin\ (no Release subfolder)
           $rel = Join-Path $bd "bin\Release"
-          Get-ChildItem $rel | Select-Object -First 10
+          if (-not (Test-Path $rel)) { $rel = Join-Path $bd "bin" }
+          Write-Host "PACK_SRC=$rel"
+          Get-ChildItem $rel | Select-Object -First 15
+          Get-ChildItem $rel -Recurse -Filter "blender.exe" | Select-Object FullName
           Compress-Archive -Path "$rel\*" -DestinationPath sq2-lite-arm64.zip -Force
           Get-ChildItem sq2-lite-arm64.zip
 
