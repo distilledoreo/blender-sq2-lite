@@ -51,8 +51,10 @@ jobs:
       - name: Discover build dir + Pack portable
         shell: pwsh
         run: |
+          Get-ChildItem C:\ -Directory -Filter "build*" | Format-Table Name, LastWriteTime
           Get-ChildItem C:\b -Directory -Filter "build*" | Format-Table Name, LastWriteTime
-          $bd = (Get-ChildItem C:\b -Directory -Filter "build*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
+          $bd = (Get-ChildItem C:\, C:\b -Directory -Filter "build_windows*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName
+          if (-not $bd) { $bd = (Get-ChildItem C:\, C:\b -Directory -Filter "build*" | Sort-Object LastWriteTime -Descending | Select-Object -First 1).FullName }
           Write-Host "BUILD_DIR=$bd"
           "BUILD_DIR=$bd" | Out-File -FilePath $env:GITHUB_ENV -Append
           $rel = Join-Path $bd "bin\Release"
