@@ -1,0 +1,64 @@
+name: sq2-lite-arm64
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-sq2.yml'
+      - 'frankenbuild/**'
+      - 'custom-driver/**'
+
+jobs:
+  lite:
+    # windows-11-arm = native ARM64 (free on public repos, fair-use).
+    # If your plan says "runner not available", change to windows-11 (x64 cross to ARM64 still works).
+    runs-on: windows-11-arm
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: VS + SDK check
+        shell: pwsh
+        run: |
+          vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -property installationPath
+          cmake --version
+          ninja --version
+
+      - name: Shallow clone Blender v5.2.3
+        shell: pwsh
+        run: |
+          git clone --depth 1 -b v5.2.3 https://projects.blender.org/blender/blender.git C:\b
+          cd C:\b
+          make update
+
+      - name: Copy SQ2 patches into source
+        shell: pwsh
+        run: |
+          Copy-Item frankenbuild/sq2_compat.patch C:\b\sq2_compat.patch -Force
+          Copy-Item custom-driver/eevee-unclosed/blender_eevee_sq2_fallback.patch C:\b\eevee_sq2.patch -Force
+          Write-Host "APPLY BY HAND in later step: search 30.0.3820 + epoxy_gl_version() >= 43 (see patch comments). Lite boots without patch; patch only lifts the Gen2 block."
+
+      - name: Configure LITE (Release, no USD/tests/GPU backends)
+        shell: pwsh
+        working-directory: C:\b
+        run: |
+          make lite BUILD_DIR=build_lite
+
+      - name: Build LITE
+        shell: pwsh
+        working-directory: C:\b
+        run: cmake --build build_lite --config Release -j 4
+
+      - name: Pack portable
+        shell: pwsh
+        run: |
+          Compress-Archive -Path C:\b\build_lite\bin\Release\* -DestinationPath sq2-lite-arm64.zip -Force
+          Get-ChildItem sq2-lite-arm64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sq2-lite-arm64
+          path: sq2-lite-arm64.zip
+          retention-days: 7

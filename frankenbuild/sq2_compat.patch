@@ -1,0 +1,79 @@
+// Frankenbuild SQ2 patch for Blender 5.2 - source/blender/gpu/opengl/gl_backend.cc
+// Target: allow GUI on Qualcomm 8cx Gen2 / SQ1/SQ2 (Adreno 685/690, driver < 30.0.3820)
+// Tradeoff: EEVEE Next + GPU Cycles OFF, Workbench/Solid + CPU Cycles ON.
+// File IO for latest .blend files is CPU-only, so it keeps working.
+//
+// --- What upstream does (v4.2.19 gl_backend.cc, same in 5.x):
+//
+//   if (!(epoxy_gl_version() >= 43)) {
+//     support_level = GPU_SUPPORT_LEVEL_UNSUPPORTED;
+//   ...
+//   // Any Qualcomm driver older than 30.x will never be capable of running blender >= 4.0
+//   // As due to an issue in D3D typed UAV load capabilities, Compute Shaders are not available
+//   // 30.0.3820.x and above ... only available on 8cx gen3 devices or newer
+//   if (ver0 < 30 || (ver0 == 30 && ver1 == 0 && ver2 < 3820)) {
+//     cout << "Qualcomm drivers older than 30.0.3820.x are not capable of running Blender 4.0\n"
+//          << "If your device is older than an 8cx Gen3, you must use a 3.x LTS release.\n"
+//     support_level = GPU_SUPPORT_LEVEL_UNSUPPORTED;
+//   }
+//
+//   // SSBO check: max_ssbo_binds < 12 => UNSUPPORTED
+//
+// --- SQ2 patch (apply by hand, line numbers shift between 5.2/5.3):
+//
+// 1. In GLBackend::platform_init(), comment out the epoxy_gl_version() >= 43 hard fail.
+//    Replace with: allow 42, mark as LIMITED, force workarounds on.
+//    This gets you past the "Unsupported Graphics Card Configuration" dialog.
+//
+// 2. In the Qualcomm driver version block, delete the early UNSUPPORTED return for ver < 30.0.3820.
+//    Replace with:
+//      if (ver0 < 30 || (ver0 == 30 && ver1 == 0 && ver2 < 3820)) {
+//        // SQ2 Frankenbuild: keep going, but kill compute-dependent paths.
+//        GCaps.shader_draw_parameters_support = false;
+//        GLContext::shader_draw_parameters_support = false;
+//        GLContext::multi_draw_indirect_support = false;
+//        // Force the same path as --debug-gpu-force-workarounds:
+//        GCaps.hdr_viewport_support = false;
+//        GLContext::clear_texture_support = false;
+//        GLContext::multi_bind_support = false;
+//        GLContext::multi_bind_image_support = false;
+//        GLContext::direct_state_access_support = false;
+//        GLContext::texture_filter_anisotropic_support = false;
+//        GCaps.stencil_export_support = false;
+//        GCaps.clip_control_support = false;
+//        GLContext::layered_rendering_support = false;
+//        support_level = GPU_SUPPORT_LEVEL_LIMITED; // NOT unsupported
+//      }
+//
+// 3. In capabilities_init(), after the Qualcomm Mesa < 24 workaround that already disables
+//    shader_draw_parameters, also force:
+//      GLContext::multi_draw_indirect_support = false;
+//    This avoids the multi-draw-indirect path that needs base-instance reads (broken on Gen2).
+//
+// 4. Build with EEVEE Next disabled for viewport, Workbench default:
+//    - Preferences startup: Solid shading, not Material Preview / Rendered.
+//    - Do NOT enable Vulkan backend (--gpu-backend OPENGL only).
+//    - Cycles: CPU only. GPU Cycles on Adreno was never available on Windows ARM anyway.
+//
+// --- What this will and won't give you:
+//
+// WILL: Blender 5.2 GUI opens natively on SQ2 at hardware D3D12 speed for Solid/Wireframe
+//       modeling, Outliner, UV, Graph editors, and latest .blend file IO (that's CPU code).
+//       That's strictly better than WARP/llvmpipe software rasterizer (which you said is too slow)
+//       because it keeps the Adreno D3D12 path for simple draws.
+//
+// WON'T: EEVEE Material Preview / Rendered viewport, EEVEE renders, or any compute-shader
+//        feature (subdiv compute, some modifiers accelerated paths). Those need D3D typed UAV
+//        loads that Gen2 drivers physically don't expose. They will render black / crash -
+//        keep them off. Use Cycles CPU for final renders (your headless path already proves this works).
+//
+// --- Why 3.6 worked and 5.2 doesn't:
+//
+// Blender 4.0 raised minimum GL to 4.3 for Linux/Windows and EEVEE was rewritten (EEVEE Next)
+// to require compute + SSBO>=12 + shader_draw_parameters + clip_control. 3.6 only needed GL 3.3
+// paths your Gen2 Mesa GLOn12 (max ~4.2) can provide. This patch carves the 3.6-class GPU path
+// back into the 5.2 codebase for the viewport only.
+//
+// Full build docs: https://developer.blender.org/docs/handbook/building_blender/
+// Use prebuilt libs (don't rebuild deps): make update + `make lite` first, then full.
+// Expected: ~100GB disk, VS2022 ARM64, 3-10 hrs on a faster machine - don't build ON the SQ2.

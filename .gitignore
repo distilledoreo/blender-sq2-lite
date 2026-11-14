@@ -1,0 +1,13 @@
+# SQ2 build repo — keep it small for free Actions minutes
+*.blend
+*.blend1
+*.glb
+*.gltf
+logs/
+build_*/
+build-windows-aarch64/
+C_blender/
+sq2_preview.glb
+*.zip
+*.pdb
+.DS_Store

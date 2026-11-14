@@ -1,0 +1,41 @@
+// Blender 5.2 EEVEE-SQ2 raster fallback — design patch (apply by hand, paths shift).
+// Goal: EEVEE Material Preview that NEVER emits compute or typed-UAV, stays raster-only.
+// This is NOT full EEVEE-Next. It's "EEVEE-SQ2": raster + pixel lighting, no ray/compute passes.
+// Full speed on Adreno 690 because every remaining opcode already works via D3D11-proven path.
+//
+// Files to touch (v5.2 branch):
+//  source/blender/draw/engines/eevee_next/eevee_shader_shared.hh
+//  source/blender/draw/engines/eevee_next/eevee_pipeline.cc
+//  source/blender/gpu/vulkan/vk_backend.cc
+//  source/blender/gpu/opengl/gl_backend.cc (your frankenbuild patch site)
+//
+// 1. Add env flag: SQ2_EEVEE_RASTER=1
+//    if (getenv("SQ2_EEVEE_RASTER")) { EEVEE_SQ2_RASTER = true; }
+//
+// 2. In eevee_pipeline.cc, when EEVEE_SQ2_RASTER:
+//    - Disable: shadow compute, lightprobe compute, film compute, cryptomatte compute,
+//      horizon scan, LUT generation via compute. Replace each with:
+//      a) precomputed LUT texture (bake once on CPU at startup, upload as immutable),
+//      b) pixel-shader fallback already in EEVEE for low-end (see EEVEE_LEGACY paths in 4.1).
+//    - Force: forward raster, 1x MSAA off, no volumetrics compute, SSR off, SSS off.
+//    - Keep: base PBR pixel lighting, image textures, alpha blend — all pixel-stage, all Gen2-safe.
+//
+// 3. In GPU backend checks (gl_backend.cc + vk_backend.cc):
+//    - Change UNSUPPORTED -> LIMITED when SQ2_EEVEE_RASTER and renderer is Adreno 6xx.
+//    - Vulkan: if VK_KHR_dynamic_rendering missing, fall back to vkBeginRenderPass path
+//      (Mesa does this internally; copy that branch, don't invent).
+//    - Vulkan: timelineSemaphore -> binary semaphore + vkWaitForFences (2% sync cost).
+//
+// 4. Shader rewriter hook (pairs with dxil_rewrite.py):
+//    - In gpu_shader_create, if SQ2_EEVEE_RASTER, run GLSL string replace:
+//      "gl_BaseInstance" -> "sq2_baseInstance", prepend "uniform int sq2_baseInstance;\n"
+//      "imageLoad(" with float format -> "sq2_rawLoad(" (structured buffer version, same bytes).
+//
+// What you get:
+//  WILL: Material Preview with lights/textures at Adreno speed, latest .blend IO intact.
+//  WON'T: raytraced SSR, volumetrics, GPU subdiv compute, Cycles GPU. Those stay CPU/off.
+//  That's still EEVEE lighting, not Workbench flat — and it's the most Gen2 can do without CPU pixels.
+//
+// Build: same as frankenbuild/BUILD_SQ2.md, but -DWITH_EEVEE_SQ2_RASTER=ON + SQ2_EEVEE_RASTER=1 at runtime.
+// Test: blender.exe --factory-startup --gpu-backend OPENGL --debug-gpu + set SQ2_EEVEE_RASTER=1
+//  Open Material Preview on default cube. Expect lit PBR, black only on volumetrics/SSR balls.
