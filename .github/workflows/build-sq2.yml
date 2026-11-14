@@ -26,12 +26,15 @@ jobs:
           cmake --version
           ninja --version
 
-      - name: Shallow clone Blender v5.2.3
-        shell: cmd
+      - name: Shallow clone Blender v5.2.3 + libs (no prompt)
+        shell: pwsh
         run: |
           git clone --depth 1 -b v5.2.3 https://projects.blender.org/blender/blender.git C:\b
           cd C:\b
-          echo y | make.bat update
+          git lfs install --local
+          # Libs are git submodules now (lib/windows_arm64) — init directly, bypasses make.bat y/n prompt.
+          git submodule update --init --depth 1 lib/windows_arm64
+          python build_files/utils/make_update.py --no-blender --no-lfs-fallback
 
       - name: Copy SQ2 patches into source
         shell: pwsh
