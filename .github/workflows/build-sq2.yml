@@ -43,10 +43,10 @@ jobs:
           Copy-Item custom-driver/eevee-unclosed/blender_eevee_sq2_fallback.patch C:\b\eevee_sq2.patch -Force
           Write-Host "APPLY BY HAND in later step: search 30.0.3820 + epoxy_gl_version() >= 43 (see patch comments). Lite boots without patch; patch only lifts the Gen2 block."
 
-      - name: Configure + Build LITE
+      - name: Configure + Build LITE (ninja, PDB-race free)
         shell: cmd
         working-directory: C:\b
-        run: make.bat lite
+        run: make.bat lite ninja
 
       - name: Discover build dir + Pack portable
         shell: pwsh
