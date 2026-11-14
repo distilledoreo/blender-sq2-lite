@@ -27,11 +27,11 @@ jobs:
           ninja --version
 
       - name: Shallow clone Blender v5.2.3
-        shell: pwsh
+        shell: cmd
         run: |
           git clone --depth 1 -b v5.2.3 https://projects.blender.org/blender/blender.git C:\b
           cd C:\b
-          make update
+          cmd //c make.bat update
 
       - name: Copy SQ2 patches into source
         shell: pwsh
@@ -41,10 +41,9 @@ jobs:
           Write-Host "APPLY BY HAND in later step: search 30.0.3820 + epoxy_gl_version() >= 43 (see patch comments). Lite boots without patch; patch only lifts the Gen2 block."
 
       - name: Configure LITE (Release, no USD/tests/GPU backends)
-        shell: pwsh
+        shell: cmd
         working-directory: C:\b
-        run: |
-          make lite BUILD_DIR=build_lite
+        run: cmd //c make.bat lite BUILD_DIR=build_lite
 
       - name: Build LITE
         shell: pwsh
