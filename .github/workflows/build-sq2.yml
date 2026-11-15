@@ -36,12 +36,15 @@ jobs:
           git submodule update --init --depth 1 lib/windows_arm64
           python build_files/utils/make_update.py --no-blender --no-lfs-fallback
 
-      - name: Copy SQ2 patches into source
+      - name: Copy SQ2 patches into source + auto-apply (Gen2 lift + EEVEE raster together)
         shell: pwsh
         run: |
           Copy-Item frankenbuild/sq2_compat.patch C:\b\sq2_compat.patch -Force
           Copy-Item custom-driver/eevee-unclosed/blender_eevee_sq2_fallback.patch C:\b\eevee_sq2.patch -Force
-          Write-Host "APPLY BY HAND in later step: search 30.0.3820 + epoxy_gl_version() >= 43 (see patch comments). Lite boots without patch; patch only lifts the Gen2 block."
+          Copy-Item custom-driver/apply_sq2_patches.py C:\b\apply_sq2_patches.py -Force
+          Copy-Item custom-driver/eevee-unclosed/dxil_rewrite.py C:\b\dxil_rewrite.py -Force
+          python C:\b\apply_sq2_patches.py C:\b
+          echo "SQ2 patches applied (search-based, tolerant to line shifts). Build continues even if patterns drift."
 
       - name: Configure + Build LITE (ninja, PDB-race free)
         shell: cmd
