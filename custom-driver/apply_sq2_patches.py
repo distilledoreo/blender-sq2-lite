@@ -21,11 +21,12 @@ def patch_gl_backend(root: Path) -> dict:
     t = p.read_text(encoding="utf-8", errors="ignore")
     orig = t
 
-    # 1. epoxy_gl_version() >= 43 hard fail -> LIMITED (allow 42 for Gen2 GLOn12)
+    # 1. epoxy_gl_version() >= 43 hard fail -> LIMITED (minimal, no brace changes).
     # Upstream: if (!(epoxy_gl_version() >= 43)) { support_level = GPU_SUPPORT_LEVEL_UNSUPPORTED;
+    # SQ2: same condition, but LIMITED so GUI opens in Workbench (Gen2 GLOn12 caps ~4.2).
     t2 = re.sub(
-        r"if\s*\(\s*!\s*\(\s*epoxy_gl_version\(\)\s*>=\s*43\s*\)\s*\)\s*\{\s*support_level\s*=\s*GPU_SUPPORT_LEVEL_UNSUPPORTED",
-        "if (!(epoxy_gl_version() >= 43)) {\n    /* SQ2: allow 4.2 as LIMITED for Workbench (Gen2 GLOn12 caps ~4.2) */\n    if (epoxy_gl_version() >= 42) { support_level = GPU_SUPPORT_LEVEL_LIMITED; } else { support_level = GPU_SUPPORT_LEVEL_UNSUPPORTED",
+        r"(if\s*\(\s*!\s*\(\s*epoxy_gl_version\(\)\s*>=\s*43\s*\)\s*\)\s*\{[^}]*?support_level\s*=\s*)GPU_SUPPORT_LEVEL_UNSUPPORTED",
+        r"\1GPU_SUPPORT_LEVEL_LIMITED /* SQ2: was UNSUPPORTED (allow 4.2 Workbench) */",
         t, count=1)
     if t2 != t:
         stats["patched_version_check"] = True
@@ -37,34 +38,49 @@ def patch_gl_backend(root: Path) -> dict:
     # 2. Qualcomm <30.0.3820 UNSUPPORTED -> LIMITED + fence compute caps.
     # Insert fencing before the existing UNSUPPORTED assignment in that block.
     # We match the ver0<30 condition and replace the next UNSUPPORTED with LIMITED + disables.
+    # 2. Qualcomm <30.0.3820: fence compute caps (statements only, no braces), then flip the
+    # following UNSUPPORTED in that block to LIMITED. Two safe steps, no if(false) trick.
     def _qualcomm_repl(m):
         cond = m.group(0)
         fence = (
             cond + "\n    /* SQ2 Frankenbuild + EEVEE-SQ2: keep going on Gen2, kill compute paths */\n"
-            "    GCaps.shader_draw_parameters_support = false;\n"
-            "    GLContext::shader_draw_parameters_support = false;\n"
-            "    GLContext::multi_draw_indirect_support = false;\n"
-            "    GCaps.hdr_viewport_support = false;\n"
-            "    GLContext::clear_texture_support = false;\n"
-            "    GLContext::multi_bind_support = false;\n"
-            "    GLContext::multi_bind_image_support = false;\n"
-            "    GLContext::direct_state_access_support = false;\n"
-            "    GLContext::texture_filter_anisotropic_support = false;\n"
-            "    GCaps.stencil_export_support = false;\n"
-            "    GCaps.clip_control_support = false;\n"
-            "    GLContext::layered_rendering_support = false;\n"
-            "    if (getenv(\"SQ2_EEVEE_RASTER\")) { /* raster-only EEVEE preview, no compute */ }\n"
-            "    support_level = GPU_SUPPORT_LEVEL_LIMITED; /* SQ2 was UNSUPPORTED */ if (false) "
+            "    { /* SQ2 fence: Workbench-safe, EEVEE-compute off */\n"
+            "      GCaps.shader_draw_parameters_support = false;\n"
+            "      GLContext::shader_draw_parameters_support = false;\n"
+            "      GLContext::multi_draw_indirect_support = false;\n"
+            "      GCaps.hdr_viewport_support = false;\n"
+            "      GLContext::clear_texture_support = false;\n"
+            "      GLContext::multi_bind_support = false;\n"
+            "      GLContext::multi_bind_image_support = false;\n"
+            "      GLContext::direct_state_access_support = false;\n"
+            "      GLContext::texture_filter_anisotropic_support = false;\n"
+            "      GCaps.stencil_export_support = false;\n"
+            "      GCaps.clip_control_support = false;\n"
+            "      GLContext::layered_rendering_support = false;\n"
+            "      if (getenv(\"SQ2_EEVEE_RASTER\")) { /* raster-only EEVEE preview, no compute */ }\n"
+            "    }"
         )
         return fence
 
     t2 = re.sub(r"if\s*\(\s*ver0\s*<\s*30", _qualcomm_repl, t, count=1)
-    # The above leaves the original "support_level = GPU_SUPPORT_LEVEL_UNSUPPORTED" after our "if (false)" guard.
-    # That is intentional: original line becomes dead code, LIMITED wins.
+    # Now flip the first UNSUPPORTED after that Qualcomm condition to LIMITED.
+    # Split to avoid touching unrelated UNSUPPORTED elsewhere.
     if t2 != t:
-        stats["patched_qualcomm"] = True
         t = t2
-        print("[SQ2] patched Qualcomm <30.0.3820 block -> LIMITED + fenced compute")
+        # Flip the first UNSUPPORTED after the Qualcomm marker to LIMITED (same block).
+        idx = t.find("ver0 < 30")
+        if idx < 0:
+            idx = t.find("ver0<30")
+        tail = t[idx:idx + 2000] if idx >= 0 else ""
+        tail2 = tail.replace("GPU_SUPPORT_LEVEL_UNSUPPORTED", "GPU_SUPPORT_LEVEL_LIMITED /* SQ2 Gen2 */", 1)
+        if tail2 != tail and idx >= 0:
+            t = t[:idx] + tail2 + t[idx + 2000:]
+            stats["patched_qualcomm"] = True
+            print("[SQ2] patched Qualcomm <30.0.3820 block -> LIMITED + fenced compute")
+        else:
+            # Fence inserted but UNSUPPORTED flip missed (pattern drift) — still counts as fenced.
+            stats["patched_qualcomm"] = True
+            print("[SQ2] fenced Qualcomm block (UNSUPPORTED flip missed, check log)")
     else:
         print("[SQ2] WARN Qualcomm ver0<30 pattern not found, continuing")
 
