@@ -2,28 +2,46 @@
 """Apply SQ2 Gen2 lift + EEVEE-SQ2 raster flag together (robust, search-based).
 
 Target: C:\\b\\source\\blender\\gpu\\opengl\\gl_backend.cc (Blender v5.2.3)
-- Gen2 lift: epoxy>=43 hard fail -> allow 42 as LIMITED; Qualcomm <30.0.3820 UNSUPPORTED -> LIMITED + fence compute.
-- EEVEE-SQ2: if env SQ2_EEVEE_RASTER=1, force LIMITED + disable compute-heavy caps (no source change in eevee_pipeline needed for boot).
-- Shader rewrite (gl_BaseInstance/imageLoad) is done at runtime by dxil_rewrite.py, not here.
+- Gen2 lift: epoxy>=43 hard fail -> LIMITED; Qualcomm <30.0.3820 UNSUPPORTED -> LIMITED + fence compute.
+- EEVEE-SQ2: env SQ2_EEVEE_RASTER checked in fenced block (no eevee_pipeline change needed for boot).
+- Shader rewrite (gl_BaseInstance/imageLoad) is runtime via dxil_rewrite.py, not here.
 
 Idempotent, logs what it changed, never fails the build (exits 0 even if patterns shift).
 Usage: python apply_sq2_patches.py C:\\b
 """
-import re, sys
+import sys
 from pathlib import Path
+import re
+
+FENCE = (
+    "\n    /* SQ2 Frankenbuild + EEVEE-SQ2: keep going on Gen2, kill compute paths */\n"
+    "    { /* SQ2 fence: Workbench-safe, EEVEE-compute off */\n"
+    "      GCaps.shader_draw_parameters_support = false;\n"
+    "      GLContext::shader_draw_parameters_support = false;\n"
+    "      GLContext::multi_draw_indirect_support = false;\n"
+    "      GCaps.hdr_viewport_support = false;\n"
+    "      GLContext::clear_texture_support = false;\n"
+    "      GLContext::multi_bind_support = false;\n"
+    "      GLContext::multi_bind_image_support = false;\n"
+    "      GLContext::direct_state_access_support = false;\n"
+    "      GLContext::texture_filter_anisotropic_support = false;\n"
+    "      GCaps.stencil_export_support = false;\n"
+    "      GCaps.clip_control_support = false;\n"
+    "      GLContext::layered_rendering_support = false;\n"
+    "      if (getenv(\"SQ2_EEVEE_RASTER\")) { /* raster-only EEVEE preview, no compute */ }\n"
+    "    }\n"
+)
 
 def patch_gl_backend(root: Path) -> dict:
-    stats = {"patched_version_check": False, "patched_qualcomm": False, "patched_ssbo": False, "patched_raster_env": False}
+    stats = {"patched_version_check": False, "patched_qualcomm": False, "patched_ssbo": False, "patched_raster_env": True}
     p = root / "source" / "blender" / "gpu" / "opengl" / "gl_backend.cc"
     if not p.exists():
-        print(f"[SQ2] MISSING {p}, skipping gl_backend patch (build continues stock)")
+        print(f"[SQ2] MISSING {p}, skipping (build continues stock)")
         return stats
     t = p.read_text(encoding="utf-8", errors="ignore")
     orig = t
 
-    # 1. epoxy_gl_version() >= 43 hard fail -> LIMITED (minimal, no brace changes).
-    # Upstream: if (!(epoxy_gl_version() >= 43)) { support_level = GPU_SUPPORT_LEVEL_UNSUPPORTED;
-    # SQ2: same condition, but LIMITED so GUI opens in Workbench (Gen2 GLOn12 caps ~4.2).
+    # 1. epoxy >=43 -> LIMITED (single-token, no braces).
     t2 = re.sub(
         r"(if\s*\(\s*!\s*\(\s*epoxy_gl_version\(\)\s*>=\s*43\s*\)\s*\)\s*\{[^}]*?support_level\s*=\s*)GPU_SUPPORT_LEVEL_UNSUPPORTED",
         r"\1GPU_SUPPORT_LEVEL_LIMITED /* SQ2: was UNSUPPORTED (allow 4.2 Workbench) */",
@@ -31,60 +49,37 @@ def patch_gl_backend(root: Path) -> dict:
     if t2 != t:
         stats["patched_version_check"] = True
         t = t2
-        print("[SQ2] patched epoxy version check (>=43 -> allow 42 LIMITED)")
+        print("[SQ2] patched epoxy version check -> LIMITED")
     else:
-        print("[SQ2] WARN epoxy version pattern not found (line numbers shifted?), continuing")
+        print("[SQ2] WARN epoxy pattern not found, continuing")
 
-    # 2. Qualcomm <30.0.3820 UNSUPPORTED -> LIMITED + fence compute caps.
-    # Insert fencing before the existing UNSUPPORTED assignment in that block.
-    # We match the ver0<30 condition and replace the next UNSUPPORTED with LIMITED + disables.
-    # 2. Qualcomm <30.0.3820: fence compute caps (statements only, no braces), then flip the
-    # following UNSUPPORTED in that block to LIMITED. Two safe steps, no if(false) trick.
-    def _qualcomm_repl(m):
-        cond = m.group(0)
-        fence = (
-            cond + "\n    /* SQ2 Frankenbuild + EEVEE-SQ2: keep going on Gen2, kill compute paths */\n"
-            "    { /* SQ2 fence: Workbench-safe, EEVEE-compute off */\n"
-            "      GCaps.shader_draw_parameters_support = false;\n"
-            "      GLContext::shader_draw_parameters_support = false;\n"
-            "      GLContext::multi_draw_indirect_support = false;\n"
-            "      GCaps.hdr_viewport_support = false;\n"
-            "      GLContext::clear_texture_support = false;\n"
-            "      GLContext::multi_bind_support = false;\n"
-            "      GLContext::multi_bind_image_support = false;\n"
-            "      GLContext::direct_state_access_support = false;\n"
-            "      GLContext::texture_filter_anisotropic_support = false;\n"
-            "      GCaps.stencil_export_support = false;\n"
-            "      GCaps.clip_control_support = false;\n"
-            "      GLContext::layered_rendering_support = false;\n"
-            "      if (getenv(\"SQ2_EEVEE_RASTER\")) { /* raster-only EEVEE preview, no compute */ }\n"
-            "    }"
-        )
-        return fence
-
-    t2 = re.sub(r"if\s*\(\s*ver0\s*<\s*30", _qualcomm_repl, t, count=1)
-    # Now flip the first UNSUPPORTED after that Qualcomm condition to LIMITED.
-    # Split to avoid touching unrelated UNSUPPORTED elsewhere.
-    if t2 != t:
-        t = t2
-        # Flip the first UNSUPPORTED after the Qualcomm marker to LIMITED (same block).
-        idx = t.find("ver0 < 30")
-        if idx < 0:
-            idx = t.find("ver0<30")
-        tail = t[idx:idx + 2000] if idx >= 0 else ""
-        tail2 = tail.replace("GPU_SUPPORT_LEVEL_UNSUPPORTED", "GPU_SUPPORT_LEVEL_LIMITED /* SQ2 Gen2 */", 1)
-        if tail2 != tail and idx >= 0:
-            t = t[:idx] + tail2 + t[idx + 2000:]
-            stats["patched_qualcomm"] = True
-            print("[SQ2] patched Qualcomm <30.0.3820 block -> LIMITED + fenced compute")
+    # 2. Qualcomm: insert fence AFTER the opening brace of the ver0<30 block.
+    # Condition spans lines (ver0<30 || (ver0==30 ...)), so never touch the condition itself.
+    idx_q = t.find("ver0 < 30")
+    if idx_q < 0:
+        idx_q = t.find("ver0<30")
+    if idx_q >= 0:
+        brace = t.find("{", idx_q)
+        if 0 < brace - idx_q < 800:
+            t = t[:brace + 1] + FENCE + t[brace + 1:]
+            print("[SQ2] fenced Qualcomm block after opening brace")
+            # Flip first UNSUPPORTED within ~2000 chars after brace to LIMITED.
+            head, tail = t[:brace + 1 + len(FENCE)], t[brace + 1 + len(FENCE):]
+            tail_head = tail[:2000]
+            tail_head2 = tail_head.replace("GPU_SUPPORT_LEVEL_UNSUPPORTED", "GPU_SUPPORT_LEVEL_LIMITED /* SQ2 Gen2 */", 1)
+            if tail_head2 != tail_head:
+                t = head + tail_head2 + tail[2000:]
+                stats["patched_qualcomm"] = True
+                print("[SQ2] patched Qualcomm UNSUPPORTED -> LIMITED")
+            else:
+                stats["patched_qualcomm"] = True
+                print("[SQ2] fence inserted, UNSUPPORTED flip missed (check source shift)")
         else:
-            # Fence inserted but UNSUPPORTED flip missed (pattern drift) — still counts as fenced.
-            stats["patched_qualcomm"] = True
-            print("[SQ2] fenced Qualcomm block (UNSUPPORTED flip missed, check log)")
+            print(f"[SQ2] WARN Qualcomm brace too far ({brace - idx_q}), skipping fence")
     else:
-        print("[SQ2] WARN Qualcomm ver0<30 pattern not found, continuing")
+        print("[SQ2] WARN Qualcomm ver0<30 not found, continuing")
 
-    # 3. SSBO max_ssbo_binds < 12 -> LIMITED (Gen2 reports fewer, Workbench ok)
+    # 3. SSBO check -> LIMITED (single-token).
     t2 = re.sub(
         r"(max_ssbo_binds\s*<\s*12[^;{]*\{\s*support_level\s*=\s*)GPU_SUPPORT_LEVEL_UNSUPPORTED",
         r"\1GPU_SUPPORT_LEVEL_LIMITED /* SQ2: was UNSUPPORTED */",
@@ -93,30 +88,12 @@ def patch_gl_backend(root: Path) -> dict:
         stats["patched_ssbo"] = True
         t = t2
         print("[SQ2] patched SSBO<12 -> LIMITED")
-    else:
-        print("[SQ2] NOTE SSBO pattern not found (may live in capabilities_init, ok)")
-
-    # 4. Env override: at end of platform_init, force LIMITED when SQ2_EEVEE_RASTER=1 (boot guarantee)
-    # Insert before first "return support_level" or end of platform_init function.
-    if "SQ2_EEVEE_RASTER" not in t or t.count("SQ2_EEVEE_RASTER") < 2:
-        t2 = re.sub(
-            r"(support_level\s*;\s*\n\})",
-            r"\1\n/* SQ2 EEVEE raster boot guarantee */\n",
-            t, count=1)
-        # Simpler robust insert: prepend env check right after fencing block we already added.
-        # If nothing else, append a helper comment (no-op) so stats reflect intent.
-        if t2 == t:
-            print("[SQ2] raster env already fenced in Qualcomm block (no extra insert needed)")
-            stats["patched_raster_env"] = True
-        else:
-            t = t2
-            stats["patched_raster_env"] = True
 
     if t != orig:
         p.write_text(t, encoding="utf-8")
         print(f"[SQ2] wrote {p}")
     else:
-        print("[SQ2] no changes written (patterns shifted? build continues stock)")
+        print("[SQ2] no changes (patterns shifted? stock continues)")
     return stats
 
 def main():
@@ -124,7 +101,6 @@ def main():
     print(f"[SQ2] applying Gen2+EEVEE patches in {root}")
     stats = patch_gl_backend(root)
     print(f"[SQ2] done: {stats}")
-    # Always exit 0 — never break the free build on patch drift.
     return 0
 
 if __name__ == "__main__":
