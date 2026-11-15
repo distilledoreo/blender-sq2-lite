@@ -13,23 +13,12 @@ import sys
 from pathlib import Path
 import re
 
+# 5.2 renamed GCaps/GLContext members (4.2 names no longer exist) — fence as no-op comment
+# to stay compilable. Level flip UNSUPPORTED->LIMITED is what opens the GUI; caps stay stock.
+# EEVEE compute is fenced at runtime via SQ2_EEVEE_RASTER + dxil_rewrite, not here.
 FENCE = (
-    "\n    /* SQ2 Frankenbuild + EEVEE-SQ2: keep going on Gen2, kill compute paths */\n"
-    "    { /* SQ2 fence: Workbench-safe, EEVEE-compute off */\n"
-    "      GCaps.shader_draw_parameters_support = false;\n"
-    "      GLContext::shader_draw_parameters_support = false;\n"
-    "      GLContext::multi_draw_indirect_support = false;\n"
-    "      GCaps.hdr_viewport_support = false;\n"
-    "      GLContext::clear_texture_support = false;\n"
-    "      GLContext::multi_bind_support = false;\n"
-    "      GLContext::multi_bind_image_support = false;\n"
-    "      GLContext::direct_state_access_support = false;\n"
-    "      GLContext::texture_filter_anisotropic_support = false;\n"
-    "      GCaps.stencil_export_support = false;\n"
-    "      GCaps.clip_control_support = false;\n"
-    "      GLContext::layered_rendering_support = false;\n"
-    "      if (getenv(\"SQ2_EEVEE_RASTER\")) { /* raster-only EEVEE preview, no compute */ }\n"
-    "    }\n"
+    "\n    /* SQ2 Gen2 lift: keep going, Workbench-safe. Caps untouched for 5.2 API compat. */\n"
+    "    /* SQ2_EEVEE_RASTER runtime flag handled by dxil_rewrite, no source change here. */\n"
 )
 
 def patch_gl_backend(root: Path) -> dict:
