@@ -32,7 +32,7 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_screen.cpp b/src/gallium/drivers/d3
     return true;
 @@ -1730,3 +1740,6 @@ d3d12_init_screen(struct d3d12_screen *screen)
              screen->max_shader_model = static_cast<dxil_shader_model>(((shader_model.HighestShaderModel & 0xf0) << 12) |
-                                                                       (shader_model.HighestShaderModel & 0xf));
+                                                                      (shader_model.HighestShaderModel & 0xf));
 +            fprintf(stderr, "D3D12 SQ2: highest shader model 0x%x, max feature level 0x%x\n",
 +                    (unsigned)shader_model.HighestShaderModel,
 +                    (unsigned)screen->max_feature_level);

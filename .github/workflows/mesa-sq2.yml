@@ -33,7 +33,7 @@ jobs:
       - name: Clone Mesa 26.3.0 (matches measured DLLs)
         shell: pwsh
         run: |
-          git clone --depth 1 -b mesa-26.3.0 https://gitlab.freedesktop.org/mesa/mesa.git C:\m
+          git clone --depth 1 -c core.autocrlf=false -b mesa-26.3.0 https://gitlab.freedesktop.org/mesa/mesa.git C:\m
       - name: Apply SQ2 patches
         shell: pwsh
         run: |
@@ -42,13 +42,16 @@ jobs:
           if (-not $p) { $p = 'none' }
           Write-Host "patches=$p"
           if ($p -eq 'probe' -or $p -eq 'force' -or $p -eq 'both') { $files += 'custom-driver/mesa_sq2_gate_probe.patch' }
-          if ($p -eq 'force' -or $p -eq 'both') { $files += 'custom-driver/mesa_sq2_force_images.patch' }
           foreach ($f in $files) {
             $dst = "C:\m\" + [IO.Path]::GetFileName($f)
             Copy-Item $f $dst
             git -C C:\m apply --stat $dst; if ($LASTEXITCODE -ne 0) { Write-Host "PATCH PARSE FAILED: $f"; exit 1 }
             git -C C:\m apply --check $dst; if ($LASTEXITCODE -ne 0) { Write-Host "PATCH CHECK FAILED: $f"; exit 1 }
             git -C C:\m apply $dst; if ($LASTEXITCODE -ne 0) { Write-Host "PATCH APPLY FAILED: $f"; exit 1 }
+          }
+          if ($p -eq 'force' -or $p -eq 'both') {
+            python custom-driver/apply_sq2_force.py C:\m\src\gallium\drivers\d3d12\d3d12_screen.cpp
+            if ($LASTEXITCODE -ne 0) { Write-Host 'FORCE APPLY FAILED'; exit 1 }
           }
           git -C C:\m status --short
       - name: Configure (d3d12 only, no LLVM)
