@@ -26,7 +26,7 @@ jobs:
       - name: Tools (meson, ninja, flex/bison)
         shell: pwsh
         run: |
-          pip install meson mako pyyaml
+          pip install meson==1.12.1 mako==1.4.3 pyyaml==6.0.3
           choco uninstall -y winflexbison; $LASTEXITCODE = 0
           choco install -y ninja winflexbison3 --version=2.5.24.20210105
           meson --version; ninja --version; win_flex --version
@@ -62,12 +62,20 @@ jobs:
       - name: Collect + upload
         shell: pwsh
         run: |
-          Get-ChildItem C:\m\build\src\gallium\targets\libgl-gdi, C:\m\build\src\egl -Recurse -Filter *.dll -ErrorAction SilentlyContinue | Format-Table FullName, Length -AutoSize
+          $want = @(
+            'src\gallium\targets\libgl-gdi\opengl32.dll',
+            'src\gallium\targets\wgl\libgallium_wgl.dll',
+            'src\egl\libEGL.dll',
+            'src\mesa\glapi\es2api\libGLESv2.dll',
+            'src\mesa\glapi\es1api\libGLESv1_CM.dll'
+          )
           New-Item -ItemType Directory -Force out | Out-Null
-          Copy-Item C:\m\build\src\gallium\targets\libgl-gdi\opengl32.dll out\ -ErrorAction Stop
-          Copy-Item C:\m\build\src\egl\main\libEGL.dll out\ -ErrorAction SilentlyContinue
-          Copy-Item C:\m\build\src\egl\main\libGLESv2.dll out\ -ErrorAction SilentlyContinue
-          Get-ChildItem out\
+          foreach ($w in $want) {
+            $src = Join-Path 'C:\m\build' $w
+            if (!(Test-Path $src)) { Write-Host "MISSING DLL: $src"; exit 1 }
+            Copy-Item $src out\
+          }
+          Get-ChildItem out\ | Format-Table Name, Length -AutoSize
       - uses: actions/upload-artifact@v4
         with:
           name: mesa-sq2-d3d12-${{ inputs.patches }}
