@@ -1,0 +1,3 @@
+D3D12 SQ2: highest shader model 0x61, max feature level 0xc100
+D3D12 SQ2: TypedUAVLoadAdditionalFormats=1
+D3D12 SQ2: fmt 11 hr=0x0 tuav=1 load=0 store=1

@@ -12,3 +12,6 @@ sq2_preview.glb
 *.pdb
 .DS_Store
 __pycache__/
+mesa-probe/
+mesa-baseline/
+dll-backup/

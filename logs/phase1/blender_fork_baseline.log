@@ -1,0 +1,95 @@
+C:\b\intern\ghost\intern\GHOST_ContextWGL.cc:533: [GetLastError() == NO_ERROR] -> Win32 Error# (18): There are no more files.
+Vendor: Microsoft Corporation
+Renderer: D3D12 (Qualcomm(R) Adreno(TM) 680 GPU)
+Version: 4.3 (Core Profile) Mesa 26.3.0 (git-0a6fa60abb)
+Context Version: 4.3
+=====================================
+Qualcomm drivers older than 30.0.3820.x cannot run Blender 4.0 or later.
+If your device is older than an 8cx Gen3, you must use a 3.x LTS release.
+If you have an 8cx Gen3 or newer device, a driver update may be available.
+=====================================
+00:00.796  gpu.debug        | Successfully hooked OpenGL debug callback
+Vendor: Microsoft Corporation
+Renderer: D3D12 (Qualcomm(R) Adreno(TM) 680 GPU)
+Version: 4.3 (Core Profile) Mesa 26.3.0 (git-0a6fa60abb)
+Context Version: 4.3
+00:01.078  gpu.debug        | Successfully hooked OpenGL debug callback
+Vendor: Microsoft Corporation
+Renderer: D3D12 (Qualcomm(R) Adreno(TM) 680 GPU)
+Version: 4.3 (Core Profile) Mesa 26.3.0 (git-0a6fa60abb)
+Context Version: 4.3
+00:02.437  gpu.debug        | Successfully hooked OpenGL debug callback
+Vendor: Microsoft Corporation
+Renderer: D3D12 (Qualcomm(R) Adreno(TM) 680 GPU)
+Version: 4.3 (Core Profile) Mesa 26.3.0 (git-0a6fa60abb)
+Context Version: 4.3
+00:02.640  gpu.debug        | Successfully hooked OpenGL debug callback
+00:02.640  gpu.platform     | Using GPU "Microsoft Corporation D3D12 (Qualcomm(R) Adreno(TM) 680 GPU) 4.3 (Core Profile) Mesa 26.3.0 (git-0a6fa60abb)"
+00:02.656  gpu.platform     | Using Backend "OpenGL"
+00:02.656  gpu.platform     | Blender - Limited Platform Support
+                            | 
+                            | Your graphics card or driver version has limited support. It may work, but with issues.
+                            |  
+                            | Newer graphics drivers might be available with better Blender compatibility.
+                            |  
+                            | Graphics card:
+                            | Microsoft Corporation D3D12 (Qualcomm(R) Adreno(TM) 680 GPU) 4.3 (Core Profile) Mesa 26.3.0 (git-0a6fa60abb)
+                            | https://docs.blender.org/manual/en/dev/troubleshooting/gpu/windows/unknown.html
+                            | 
+03:43.046  gpu.shader       | WARNING gpu_shader_2D_widget_base VertShader: 
+                            | 
+03:45.046  gpu.shader       | WARNING gpu_shader_2D_widget_base_inst VertShader: 
+                            | 
+03:47.765  gpu.shader       | WARNING overlay_armature_envelope_outline VertShader: 
+                            | 
+03:47.781  gpu.shader       | WARNING workbench_smaa_stage_0 VertShader: 
+                            | 
+03:47.812  gpu.shader       | WARNING workbench_smaa_stage_1 VertShader: 
+                            | 
+03:47.843  gpu.shader       | WARNING workbench_smaa_stage_1 FragShader: 
+                            | 
+03:47.906  gpu.shader       | WARNING overlay_armature_shape_solid VertShader: 
+                            | 
+03:47.906  gpu.shader       | WARNING workbench_smaa_stage_2 VertShader: 
+                            | 
+03:48.000  gpu.shader       | WARNING overlay_armature_shape_outline VertShader: 
+                            | 
+03:48.218  gpu.shader       | WARNING overlay_armature_shape_wire_strip VertShader: 
+                            | 
+03:48.359  gpu.shader       | WARNING overlay_armature_shape_wire VertShader: 
+                            | 
+03:48.562  gpu.shader       | WARNING overlay_armature_sphere_solid VertShader: 
+                            | 
+03:48.750  gpu.shader       | WARNING overlay_armature_sphere_outline VertShader: 
+                            | 
+03:49.328  gpu.shader       | WARNING overlay_background VertShader: 
+                            | 
+03:49.921  gpu.shader       | WARNING overlay_depth_gpencil VertShader: 
+                            | 
+03:53.531  gpu.shader       | WARNING overlay_outline_detect VertShader: 
+                            | 
+03:53.578  gpu.shader       | WARNING overlay_outline_detect FragShader: 
+                            | 
+03:53.812  gpu.shader       | WARNING overlay_outline_prepass_gpencil VertShader: 
+                            | 
+03:54.671  gpu.shader       | WARNING overlay_particle_hair VertShader: 
+                            | 
+03:54.968  gpu.shader       | WARNING overlay_wireframe_curve VertShader: 
+                            | 
+03:55.078  gpu.shader       | WARNING overlay_wireframe VertShader: 
+                            | 
+03:55.203  gpu.shader       | WARNING overlay_wireframe_points VertShader: 
+                            | 
+03:55.328  gpu.shader       | WARNING overlay_wireframe_points_with_radius VertShader: 
+                            | 
+03:55.437  gpu.shader       | WARNING workbench_prepass_mesh_opaque_studio_material_no_clip VertShader: 
+                            | 
+GLShader: Error: Could not create shader object.
+03:55.500  gpu.shader       | ERROR draw_resource_finalize Linking: 
+                            |       | Error: no shaders attached to the program
+                            | 
+Error   : EXCEPTION_ACCESS_VIOLATION
+Address : 0x00007FF66232E1AC
+Module  : blender.exe
+Thread  : 0000648c
+Writing: C:\Users\disti\AppData\Local\Temp\blender.crash.txt
