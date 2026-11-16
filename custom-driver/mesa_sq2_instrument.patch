@@ -1,0 +1,43 @@
+diff --git a/src/gallium/drivers/d3d12/d3d12_resource.cpp b/src/gallium/drivers/d3d12/d3d12_resource.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_resource.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_resource.cpp
+@@ -414,7 +414,12 @@ d3d12_resource_create_or_place(struct d3d12_screen *screen,
+    } while (hres == E_OUTOFMEMORY && d3d12_screen_reclaim_one(screen));
+ 
+    if (FAILED(hres))
+-      return false;
++   {
++      fprintf(stderr, "D3D12 SQ2: resource create FAILED hr=0x%lx size=%llu bind=0x%x usage=%d target=%d removed=0x%lx (experimental)\n",
++              (long)hres, (unsigned long long)desc.Width, templ->bind, (int)templ->usage, (int)templ->target,
++              (long)screen->dev->GetDeviceRemovedReason());
++      return false;
++   }
+ 
+    if (screen->winsys && (templ->bind & PIPE_BIND_DISPLAY_TARGET)) {
+       struct sw_winsys *winsys = screen->winsys;
+diff --git a/src/gallium/drivers/d3d12/d3d12_draw.cpp b/src/gallium/drivers/d3d12/d3d12_draw.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_draw.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_draw.cpp
+@@ -1340,6 +1340,8 @@ d3d12_launch_grid(struct pipe_context *pctx, const struct pipe_grid_info *info)
+    if (!ctx->current_compute_pso || ctx->state_dirty & D3D12_DIRTY_COMPUTE_PSO) {
+       ctx->current_compute_pso = d3d12_get_compute_pipeline_state(ctx);
+       assert(ctx->current_compute_pso);
++      fprintf(stderr, "D3D12 SQ2: compute PSO created, removed=0x%lx (experimental)\n",
++              (long)d3d12_screen(ctx->base.screen)->dev->GetDeviceRemovedReason());
+    }
+ 
+    ctx->cmdlist_dirty |= ctx->state_dirty;
+@@ -1385,7 +1387,13 @@ d3d12_launch_grid(struct pipe_context *pctx, const struct pipe_grid_info *info)
+       ctx->cmdlist->Dispatch(info->grid[0], info->grid[1], info->grid[2]);
+    }
+    ctx->has_commands = true;
++   {
++      static unsigned sq2_dispatch_count = 0;
++      fprintf(stderr, "D3D12 SQ2: compute dispatch #%u grid=%ux%ux%u indirect=%d removed=0x%lx (experimental)\n",
++              ++sq2_dispatch_count, info->grid[0], info->grid[1], info->grid[2], indirect != nullptr,
++              (long)d3d12_screen(ctx->base.screen)->dev->GetDeviceRemovedReason());
++   }
+ 
+    ctx->state_dirty &= D3D12_DIRTY_GFX_MASK;
+    ctx->cmdlist_dirty &= D3D12_DIRTY_GFX_MASK;
+ 

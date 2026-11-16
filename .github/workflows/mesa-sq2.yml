@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       patches:
-        description: 'Which SQ2 patches to apply (none|probe|force|both)'
+        description: 'Which SQ2 patches to apply (none|probe|force|both|instrument)'
         required: true
         default: 'none'
   push:
@@ -41,7 +41,8 @@ jobs:
           $p = '${{ inputs.patches }}'
           if (-not $p) { $p = 'none' }
           Write-Host "patches=$p"
-          if ($p -eq 'probe' -or $p -eq 'force' -or $p -eq 'both') { $files += 'custom-driver/mesa_sq2_gate_probe.patch' }
+          if ($p -eq 'probe' -or $p -eq 'force' -or $p -eq 'both' -or $p -eq 'instrument') { $files += 'custom-driver/mesa_sq2_gate_probe.patch' }
+          if ($p -eq 'instrument') { $files += 'custom-driver/mesa_sq2_instrument.patch' }
           foreach ($f in $files) {
             $dst = "C:\m\" + [IO.Path]::GetFileName($f)
             Copy-Item $f $dst
@@ -49,7 +50,7 @@ jobs:
             git -C C:\m apply --check $dst; if ($LASTEXITCODE -ne 0) { Write-Host "PATCH CHECK FAILED: $f"; exit 1 }
             git -C C:\m apply $dst; if ($LASTEXITCODE -ne 0) { Write-Host "PATCH APPLY FAILED: $f"; exit 1 }
           }
-          if ($p -eq 'force' -or $p -eq 'both') {
+          if ($p -eq 'force' -or $p -eq 'both' -or $p -eq 'instrument') {
             python custom-driver/apply_sq2_force.py C:\m\src\gallium\drivers\d3d12\d3d12_screen.cpp
             if ($LASTEXITCODE -ne 0) { Write-Host 'FORCE APPLY FAILED'; exit 1 }
           }
