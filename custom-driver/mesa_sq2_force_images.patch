@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SQ2 Mesa fork
+Subject: [PATCH] d3d12: experimental SQ2 force-on for shader images
+
+Experiment only, behind D3D12_SQ2_FORCE_IMAGES=1. Forces
+support_shader_images=true so ARB_shader_image_load_store and (via
+st_extensions.c) ARB_compute_shader can expose on drivers whose
+TypedUAV/format queries fail (e.g. Qualcomm 27.x). No lowering is
+added by this patch: any shader that actually loads an image format
+the hardware rejects will fail at pipeline creation or render
+wrong pixels -- that failure list defines the real lowering work
+(see d3d12_lower_image_casts.c, already in-tree). Keep EEVEE fenced
+in Blender while this is set: EEVEE reads SFLOAT_16_16_16_16 and
+wider formats that have no R32 lowering.
+
+Unset the variable for comparison runs.
+
+diff --git a/src/gallium/drivers/d3d12/d3d12_screen.cpp b/src/gallium/drivers/d3d12/d3d12_screen.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_screen.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_screen.cpp
+@@ can_shader_image_load_all_formats(struct d3d12_screen *screen)
+ {
++   if (os_get_option("D3D12_SQ2_FORCE_IMAGES")) {
++      debug_printf("D3D12 SQ2: forcing support_shader_images=true (experimental)\n");
++      return true;
++   }
+    if (!screen->opts.TypedUAVLoadAdditionalFormats)
+       return false;
