@@ -1,0 +1,36 @@
+Switching to fully guarded memory allocator.
+Blender 5.2.3 LTS
+argv[0] = C:\blender-sq2-lite\blender.exe
+argv[1] = --factory-startup
+argv[2] = --debug
+argv[3] = --debug-gpu
+argv[4] = --log
+argv[5] = cycles
+argv[6] = --python-expr
+argv[7] = import
+argv[8] = bpy;
+argv[9] = bpy.context.preferences.filepaths.temporary_directory=r'C:\Users\disti\AppData\Local\Temp\blender\debug_logs';
+argv[10] = bpy.ops.wm.sysinfo(filepath=r'C:\Users\disti\AppData\Local\Temp\blender\debug_logs\blender_system_info.txt')
+=====================================
+Qualcomm drivers older than 30.0.3820.x cannot run Blender 4.0 or later.
+If your device is older than an 8cx Gen3, you must use a 3.x LTS release.
+If you have an 8cx Gen3 or newer device, a driver update may be available.
+=====================================
+00:01.047  gpu.debug        | Successfully hooked OpenGL debug callback
+00:01.250  gpu.debug        | Successfully hooked OpenGL debug callback
+00:01.703  gpu.debug        | Successfully hooked OpenGL debug callback
+00:01.797  gpu.debug        | Successfully hooked OpenGL debug callback
+00:01.797  gpu.platform     | Using GPU "Microsoft Corporation D3D12 (Qualcomm(R) Adreno(TM) 680 GPU) 4.3 (Core Profile) Mesa 26.3.0"
+00:01.797  gpu.platform     | Using Backend "OpenGL"
+00:01.797  gpu.platform     | Blender - Platform Unsupported
+                            | 
+                            | Your graphics card or driver version is not supported.
+                            |  
+                            | Newer graphics drivers might be available with better Blender compatibility.
+                            |  
+                            | Graphics card:
+                            | Microsoft Corporation D3D12 (Qualcomm(R) Adreno(TM) 680 GPU) 4.3 (Core Profile) Mesa 26.3.0
+                            |  
+                            | Blender will now close.
+                            | https://docs.blender.org/manual/en/dev/troubleshooting/gpu/windows/unknown.html
+                            | 
