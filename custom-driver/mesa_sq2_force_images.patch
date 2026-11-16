@@ -21,7 +21,7 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_screen.cpp b/src/gallium/drivers/d3
 @@ can_shader_image_load_all_formats(struct d3d12_screen *screen)
  {
 +   if (os_get_option("D3D12_SQ2_FORCE_IMAGES")) {
-+      debug_printf("D3D12 SQ2: forcing support_shader_images=true (experimental)\n");
++      fprintf(stderr, "D3D12 SQ2: forcing support_shader_images=true (experimental)\n");
 +      return true;
 +   }
     if (!screen->opts.TypedUAVLoadAdditionalFormats)

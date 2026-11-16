@@ -12,8 +12,10 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_screen.cpp b/src/gallium/drivers/d3
 +++ b/src/gallium/drivers/d3d12/d3d12_screen.cpp
 @@ -921,6 +921,8 @@ can_shader_image_load_all_formats(struct d3d12_screen *screen)
  {
-+   debug_printf("D3D12 SQ2: TypedUAVLoadAdditionalFormats=%d\n",
-+                (int)screen->opts.TypedUAVLoadAdditionalFormats);
++   /* fprintf: debug_printf compiles out in release builds; the CI fork
++    * builds release, so this table must print unconditionally. */
++   fprintf(stderr, "D3D12 SQ2: TypedUAVLoadAdditionalFormats=%d\n",
++           (int)screen->opts.TypedUAVLoadAdditionalFormats);
     if (!screen->opts.TypedUAVLoadAdditionalFormats)
        return false;
 
@@ -31,8 +33,8 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_screen.cpp b/src/gallium/drivers/d3
 +         ((support.Support2 & D3D12_FORMAT_SUPPORT2_UAV_TYPED_LOAD) != 0);
 +      bool store = SUCCEEDED(hr) &&
 +         ((support.Support2 & D3D12_FORMAT_SUPPORT2_UAV_TYPED_STORE) != 0);
-+      debug_printf("D3D12 SQ2: fmt %d hr=0x%lx tuav=%d load=%d store=%d\n",
-+                   (int)additional_formats[i], (long)hr, tuav, load, store);
++      fprintf(stderr, "D3D12 SQ2: fmt %d hr=0x%lx tuav=%d load=%d store=%d\n",
++              (int)additional_formats[i], (long)hr, tuav, load, store);
 +      if (!tuav || !load || !store)
           return false;
     }
@@ -42,7 +44,7 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_screen.cpp b/src/gallium/drivers/d3
 @@ -1730,6 +1737,9 @@ d3d12_init_screen(struct d3d12_screen *screen)
              screen->max_shader_model = static_cast<dxil_shader_model>(((shader_model.HighestShaderModel & 0xf0) << 12) |
                                                                       (shader_model.HighestShaderModel & 0xf));
-+            debug_printf("D3D12 SQ2: highest shader model 0x%x, max feature level 0x%x\n",
-+                         (unsigned)shader_model.HighestShaderModel,
-+                         (unsigned)screen->max_feature_level);
++            fprintf(stderr, "D3D12 SQ2: highest shader model 0x%x, max feature level 0x%x\n",
++                    (unsigned)shader_model.HighestShaderModel,
++                    (unsigned)screen->max_feature_level);
              break;

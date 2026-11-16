@@ -1,0 +1,79 @@
+name: mesa-sq2-d3d12
+on:
+  workflow_dispatch:
+    inputs:
+      patches:
+        description: 'Which SQ2 patches to apply (none|probe|force|both)'
+        required: true
+        default: 'none'
+  push:
+    branches: [main]
+    paths:
+      - 'custom-driver/mesa_sq2_*.patch'
+      - '.github/workflows/mesa-sq2.yml'
+
+jobs:
+  d3d12:
+    runs-on: windows-11-arm
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: arm64
+      - name: Tools (meson, ninja, flex/bison)
+        shell: pwsh
+        run: |
+          pip install meson
+          choco install -y ninja winflexbison
+          meson --version; ninja --version; win_flex --version
+      - name: Clone Mesa 26.3.0 (matches measured DLLs)
+        shell: pwsh
+        run: |
+          git clone --depth 1 -b mesa-26.3.0 https://gitlab.freedesktop.org/mesa/mesa.git C:\m
+      - name: Apply SQ2 patches
+        shell: pwsh
+        run: |
+          $p = '${{ inputs.patches }}'
+          if (-not $p) { $p = 'none' }
+          Write-Host "patches=$p"
+          if ($p -eq 'probe' -or $p -eq 'both') {
+            Copy-Item custom-driver/mesa_sq2_gate_probe.patch C:\m\probe.patch
+            git -C C:\m apply --check probe.patch
+            git -C C:\m apply probe.patch
+          }
+          if ($p -eq 'force' -or $p -eq 'both') {
+            Copy-Item custom-driver/mesa_sq2_force_images.patch C:\m\force.patch
+            git -C C:\m apply --check force.patch
+            git -C C:\m apply force.patch
+          }
+          git -C C:\m status --short
+      - name: Configure (d3d12 only, no LLVM)
+        shell: cmd
+        working-directory: C:\m
+        run: >
+          meson setup build --prefix="%CD%\inst"
+          --default-library=static -Dbuildtype=release -Db_ndebug=true
+          -Dllvm=disabled -Dplatforms=windows -Dvideo-codecs=
+          -Dgallium-drivers=d3d12 -Dvulkan-drivers=
+          -Degl=enabled -Dgles1=enabled -Dgles2=enabled
+      - name: Build
+        shell: cmd
+        working-directory: C:\m
+        run: ninja -C build
+      - name: Collect + upload
+        shell: pwsh
+        run: |
+          Get-ChildItem C:\m\build\src\gallium\targets\libgl-gdi, C:\m\build\src\egl -Recurse -Filter *.dll -ErrorAction SilentlyContinue | Format-Table FullName, Length -AutoSize
+          New-Item -ItemType Directory -Force out | Out-Null
+          Copy-Item C:\m\build\src\gallium\targets\libgl-gdi\opengl32.dll out\ -ErrorAction Stop
+          Copy-Item C:\m\build\src\egl\main\libEGL.dll out\ -ErrorAction SilentlyContinue
+          Copy-Item C:\m\build\src\egl\main\libGLESv2.dll out\ -ErrorAction SilentlyContinue
+          Get-ChildItem out\
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mesa-sq2-d3d12-${{ inputs.patches }}
+          path: out/*
+          retention-days: 7
