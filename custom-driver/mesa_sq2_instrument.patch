@@ -41,3 +41,80 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_draw.cpp b/src/gallium/drivers/d3d1
     ctx->state_dirty &= D3D12_DIRTY_GFX_MASK;
     ctx->cmdlist_dirty &= D3D12_DIRTY_GFX_MASK;
  
+diff --git a/src/gallium/drivers/d3d12/d3d12_batch.cpp b/src/gallium/drivers/d3d12/d3d12_batch.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_batch.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_batch.cpp
+@@ -310,5 +310,7 @@ d3d12_end_batch
+-   if (FAILED(ctx->cmdlist->Close())) {
++   HRESULT sq2_close_hr = ctx->cmdlist->Close();
++   if (FAILED(sq2_close_hr)) {
+       debug_printf("D3D12: closing ID3D12GraphicsCommandList failed\n");
++      fprintf(stderr, "D3D12 SQ2: cmdlist Close FAILED hr=0x%lx (experimental)\n", (long)sq2_close_hr);
+       batch->has_errors = true;
+       return;
+    }
+ 
+diff --git a/src/gallium/drivers/d3d12/d3d12_batch.cpp b/src/gallium/drivers/d3d12/d3d12_batch.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_batch.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_batch.cpp
+@@ -331,4 +331,25 @@ d3d12_end_batch
+-   if (residency_ok)
+-      screen->cmdqueue->ExecuteCommandLists(count_to_execute, to_execute);
++   if (residency_ok) {
++      screen->cmdqueue->ExecuteCommandLists(count_to_execute, to_execute);
++      HRESULT sq2_exec_removed = screen->dev->GetDeviceRemovedReason();
++      fprintf(stderr, "D3D12 SQ2: Execute removed=0x%lx (experimental)\n", (long)sq2_exec_removed);
++      if (sq2_exec_removed != S_OK) {
++         ID3D12InfoQueue *sq2_iq = nullptr;
++         if (SUCCEEDED(screen->dev->QueryInterface(IID_PPV_ARGS(&sq2_iq)))) {
++            uint64_t sq2_n = sq2_iq->GetNumStoredMessages();
++            fprintf(stderr, "D3D12 SQ2: infoqueue messages=%llu (experimental)\n", (unsigned long long)sq2_n);
++            uint64_t sq2_first = sq2_n > 8 ? sq2_n - 8 : 0;
++            for (uint64_t sq2_i = sq2_first; sq2_i < sq2_n; ++sq2_i) {
++               SIZE_T sq2_len = 0;
++               if (SUCCEEDED(sq2_iq->GetMessage(sq2_i, nullptr, &sq2_len)) && sq2_len > 0 && sq2_len < 8192) {
++                  char *sq2_buf = new char[sq2_len];
++                  if (SUCCEEDED(sq2_iq->GetMessage(sq2_i, (D3D12_MESSAGE *)sq2_buf, &sq2_len)))
++                     fprintf(stderr, "D3D12 SQ2: layer: %s (experimental)\n", ((D3D12_MESSAGE *)sq2_buf)->pDescription);
++                  delete[] sq2_buf;
++               }
++            }
++            sq2_iq->Release();
++         }
++      }
++   } else
+    else
+       batch->has_errors = true;
+ 
+diff --git a/src/gallium/drivers/d3d12/d3d12_draw.cpp b/src/gallium/drivers/d3d12/d3d12_draw.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_draw.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_draw.cpp
+@@ -1398,5 +1398,28 @@ d3d12_launch_grid
+    /* The next draw needs to reassert the graphics PSO */
+    ctx->cmdlist_dirty |= D3D12_DIRTY_SHADER;
+    batch->pending_memory_barrier = false;
++   d3d12_flush_cmdlist_and_wait(ctx);
++   {
++      HRESULT sq2_fw_removed = d3d12_screen(ctx->base.screen)->dev->GetDeviceRemovedReason();
++      fprintf(stderr, "D3D12 SQ2: compute dispatch flushed+waited, removed=0x%lx (experimental)\n", (long)sq2_fw_removed);
++      if (sq2_fw_removed != S_OK) {
++         ID3D12InfoQueue *sq2_iq = nullptr;
++         if (SUCCEEDED(d3d12_screen(ctx->base.screen)->dev->QueryInterface(IID_PPV_ARGS(&sq2_iq)))) {
++            uint64_t sq2_n = sq2_iq->GetNumStoredMessages();
++            fprintf(stderr, "D3D12 SQ2: infoqueue messages=%llu (experimental)\n", (unsigned long long)sq2_n);
++            uint64_t sq2_first = sq2_n > 8 ? sq2_n - 8 : 0;
++            for (uint64_t sq2_i = sq2_first; sq2_i < sq2_n; ++sq2_i) {
++               SIZE_T sq2_len = 0;
++               if (SUCCEEDED(sq2_iq->GetMessage(sq2_i, nullptr, &sq2_len)) && sq2_len > 0 && sq2_len < 8192) {
++                  char *sq2_buf = new char[sq2_len];
++                  if (SUCCEEDED(sq2_iq->GetMessage(sq2_i, (D3D12_MESSAGE *)sq2_buf, &sq2_len)))
++                     fprintf(stderr, "D3D12 SQ2: layer: %s (experimental)\n", ((D3D12_MESSAGE *)sq2_buf)->pDescription);
++                  delete[] sq2_buf;
++               }
++            }
++            sq2_iq->Release();
++         }
++      }
++   }
+ 
+    ctx->shader_dirty[MESA_SHADER_COMPUTE] = 0;
