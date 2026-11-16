@@ -2,9 +2,17 @@ From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: SQ2 Mesa fork
 Subject: [PATCH] d3d12: experimental SQ2 force-on for shader images
 
-Experiment only, behind D3D12_SQ2_FORCE_IMAGES=1. Forces
-support_shader_images=true so ARB_shader_image_load_store and (via
-st_extensions.c) ARB_compute_shader can expose on drivers whose
+Experiment only, behind D3D12_SQ2_FORCE_IMAGES=1. Overrides each
+failing check inside can_shader_image_load_all_formats AFTER the probe
+patch has printed the real values, so a forced run still records the
+true TypedUAV flag and per-format table on stderr. Requires the probe
+patch applied first (CI applies probe for inputs probe|force|both).
+
+With the variable unset this patch changes nothing: real checks run,
+real result returned. With it set, each ignored failure is logged.
+
+Forces support_shader_images=true so ARB_shader_image_load_store and
+(via st_extensions.c) ARB_compute_shader can expose on drivers whose
 TypedUAV/format queries fail (e.g. Qualcomm 27.x). No lowering is
 added by this patch: any shader that actually loads an image format
 the hardware rejects will fail at pipeline creation or render
@@ -18,11 +26,27 @@ Unset the variable for comparison runs.
 diff --git a/src/gallium/drivers/d3d12/d3d12_screen.cpp b/src/gallium/drivers/d3d12/d3d12_screen.cpp
 --- a/src/gallium/drivers/d3d12/d3d12_screen.cpp
 +++ b/src/gallium/drivers/d3d12/d3d12_screen.cpp
-@@ can_shader_image_load_all_formats(struct d3d12_screen *screen)
- {
-+   if (os_get_option("D3D12_SQ2_FORCE_IMAGES")) {
-+      fprintf(stderr, "D3D12 SQ2: forcing support_shader_images=true (experimental)\n");
-+      return true;
-+   }
+@@ -921,9 +921,13 @@ can_shader_image_load_all_formats(struct d3d12_screen *screen)
+    fprintf(stderr, "D3D12 SQ2: TypedUAVLoadAdditionalFormats=%d\n",
+            (int)screen->opts.TypedUAVLoadAdditionalFormats);
     if (!screen->opts.TypedUAVLoadAdditionalFormats)
-       return false;
+-      return false;
++   {
++      if (!os_get_option("D3D12_SQ2_FORCE_IMAGES"))
++         return false;
++      fprintf(stderr, "D3D12 SQ2: TypedUAV flag false, forcing past it (experimental)\n");
++   }
+
+@@ -949,8 +953,12 @@ can_shader_image_load_all_formats(struct d3d12_screen *screen)
+       fprintf(stderr, "D3D12 SQ2: fmt %d hr=0x%lx tuav=%d load=%d store=%d\n",
+               (int)additional_formats[i], (long)hr, tuav, load, store);
+-      if (!tuav || !load || !store)
+-         return false;
++      if (!tuav || !load || !store) {
++         if (!os_get_option("D3D12_SQ2_FORCE_IMAGES"))
++            return false;
++         fprintf(stderr, "D3D12 SQ2: forcing past failed format (experimental)\n");
++      }
+    }
+
+    return true;

@@ -28,7 +28,7 @@ jobs:
         run: |
           pip install meson mako pyyaml
           choco uninstall -y winflexbison; $LASTEXITCODE = 0
-          choco install -y ninja winflexbison3
+          choco install -y ninja winflexbison3 --version=2.5.24.20210105
           meson --version; ninja --version; win_flex --version
       - name: Clone Mesa 26.3.0 (matches measured DLLs)
         shell: pwsh
@@ -40,7 +40,7 @@ jobs:
           $p = '${{ inputs.patches }}'
           if (-not $p) { $p = 'none' }
           Write-Host "patches=$p"
-          if ($p -eq 'probe' -or $p -eq 'both') {
+          if ($p -eq 'probe' -or $p -eq 'force' -or $p -eq 'both') {
             Copy-Item custom-driver/mesa_sq2_gate_probe.patch C:\m\probe.patch
             git -C C:\m apply --check probe.patch
             git -C C:\m apply probe.patch
