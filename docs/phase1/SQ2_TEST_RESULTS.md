@@ -138,7 +138,25 @@ Log: `logs/phase1/blender_force.log`, crash: `logs/phase1/blender_force_crash.tx
 
 ## Ordered next steps — results (`instrument` build, run 43938927551)
 
-### 1. Instrumented failure (log: `logs/phase1/blender_instrument.log`)
+### Code verification (on-device winerror.h) — CORRECTION
+
+Checked against `Windows Kits/10/Include/10.0.26100.0/shared/winerror.h`:
+
+- `0x887A0005` = `DXGI_ERROR_DEVICE_REMOVED`
+- `0x887A0001` = `DXGI_ERROR_INVALID_CALL`
+- `0x887A0006` = `DXGI_ERROR_DEVICE_HUNG`
+
+The earlier record is corrected: `removed=0x887a0001` is **INVALID_CALL**,
+not DEVICE_HUNG. There is **no DEVICE_HUNG evidence anywhere** — the row-1
+inference from the previous turn is withdrawn. The terminal line reads:
+create fails with DEVICE_REMOVED while the reason query returns
+INVALID_CALL — an odd combo the debug layer was supposed to explain (see
+below). `usage=0` = `PIPE_USAGE_DEFAULT`, `bind=0x8` =
+`PIPE_BIND_SAMPLER_VIEW`, `target=2` = `PIPE_TEXTURE_2D` (26.3.0
+`p_defines.h`): the failing create is a sampled 2D texture, fallout on an
+already-bad device, not the root cause.
+
+### 1. Instrumented failure (logs: `logs/phase1/blender_instrument*.log`)
 
 Build `instrument` = msvc + probe + force applier + `mesa_sq2_instrument.patch`
 (buffer-create failure print; compute PSO + dispatch checkpoints). Blender
@@ -162,12 +180,78 @@ launch recipe identical to the force run (force env + 4.3/430 override).
 - Crash signature unchanged from the force run: read AV at `0x4C` in
   `libgallium_wgl!mesa_glapi_get_proc_address` during `st_screen_destroy`
   (`logs/phase1/blender_instrument_crash.txt`).
-- Honest caveat: `launch_grid` RECORDS into a deferred cmdlist, so
-  `removed=0x0` on dispatch #1 means "healthy up to record time", not
-  "dispatch executed fine". The hang is inferred: one dispatch recorded,
-  everything after it fails, device reports HUNG. Per the decision table
-  this is row 1 — driver fault after a compute dispatch; the minimal
-  compute test is the next isolation step.
+- SUPERSEDED by v2/v3 below: the flush+fence-wait proves the dispatch
+executed fine, and the reason code was misread (see correction above —
+INVALID_CALL, no HUNG anywhere).
+
+### 1b. Instrument v2/v3 — first failing Close/Execute (log:
+`logs/phase1/blender_instrument2.log`, build `instrument` run 43972184797)
+
+v2 added: Close() HRESULT, removal after every ExecuteCommandLists,
+forced flush+fence-wait after each compute dispatch, ID3D12InfoQueue dump
+on nonzero removal. v3 added: pre-dispatch recording print, end_batch
+entry print (H8 had to move to the python applier — `git apply` rejects
+its byte-identical pre-image, the same quirk as the force hunk).
+
+Blender frame result — the exact sequence around the failure:
+
+```text
+compute PSO created, removed=0x0
+recording dispatch grid=1x1x1 indirect=0
+compute dispatch #1 grid=1x1x1 indirect=0 removed=0x0
+end_batch enter / Execute removed=0x0
+compute dispatch flushed+waited, removed=0x0     <- compute fully done, healthy
+end_batch enter / Execute removed=0x887a0001     <- NEXT submit: INVALID_CALL
+WARNING draw_command_generate ComputeShader  (00:10.719)
+ERROR GL_OUT_OF_MEMORY in glBufferData ...
+```
+
+- **No Close ever FAILED**; every pre-compute Execute reports `0x0`.
+- The compute batch is exonerated: recorded, flushed, fence-waited,
+device healthy throughout. The v1 build (no forced flush) shows the
+identical OOM cascade, so the flush instrumentation is innocent.
+- The fault is the **first submit after the first compute batch**
+(or state that batch leaves behind): INVALID_CALL on Execute, then the
+OOM cascade, then the terminal DEVICE_REMOVED create + teardown AV.
+Blender-side, this lands between the workbench-prepass compiles and the
+draw_command_generate compile.
+- No nonzero removal anywhere else in the run.
+
+### Minimal compute test (no Blender: `mesa-test/compute_min.py`)
+
+Force-on 4.2 core ctx, no override: one SSBO (4xuint, zeroed), compute
+shader writing `data[i] = i*7+1` via `gl_GlobalInvocationID`, dispatch
+1x1x1, barrier, glFlush, glFinish, readback. (Needed
+`#extension GL_ARB_compute_shader/shader_storage_buffer_object` in a
+`#version 420` shader — 4.2 GLSL gates both.)
+
+- Compile OK, link OK, dispatch call returns, then **AV (NULL read)
+inside glFlush/glFinish**. v3 instrumentation: 3 healthy
+end_batch+Execute cycles, `compute PSO created`, then crash **before**
+the `recording dispatch` print — i.e. in the record path (root
+signature / descriptor / Dispatch recording), not in submit.
+- This differs from Blender (which records dispatches fine): the minimal
+test binds an SSBO (`PIPE_BIND_SHADER_BUFFER`), Blender's first dispatch
+may not. The record-path AV with SSBO bound is a second, distinct lead —
+not yet reduced (no-SSBO variant untested).
+- Per the decision table this is neither "passes" nor HUNG/INVALID_CALL:
+no GL error, no removal, just a record-path NULL AV. It needs the layer
+to name the call — which is blocked (next).
+
+### Debug layer — blocked
+
+- `D3D12_DEBUG=debuglayer` (confirmed token in 26.3.0 source) **kills
+context creation entirely** (no 4.2 ctx, driver never inits) — even with
+the full Agility 619 redist (D3D12Core + SDKLayers) staged exe-relative
+and `D3D12_AGILITY_*` set.
+- Graphics Tools FOD presence/install requires elevation
+(`Get-WindowsCapability` refuses); not available in this session.
+- So there is no debug-layer message and the InfoQueue dump code ships
+dormant in the build (prints nothing without the layer). The layer names
+nothing until it can run.
+- First failing Close/Execute stands as the attribution instead: no
+failing Close exists; the first failing operation device-wide in
+Blender's frame is the Execute right after the successful compute batch.
 
 ### 2. Launch conditions — stated
 
