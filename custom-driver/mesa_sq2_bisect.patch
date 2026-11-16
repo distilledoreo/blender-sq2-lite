@@ -1,0 +1,70 @@
+diff --git a/src/gallium/drivers/d3d12/d3d12_batch.cpp b/src/gallium/drivers/d3d12/d3d12_batch.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_batch.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_batch.cpp
+@@ -331,7 +331,22 @@ d3d12_end_batch
+    if (residency_ok) {
+       screen->cmdqueue->ExecuteCommandLists(count_to_execute, to_execute);
+       HRESULT sq2_exec_removed = screen->dev->GetDeviceRemovedReason();
+-      fprintf(stderr, "D3D12 SQ2: Execute removed=0x%lx (experimental)\n", (long)sq2_exec_removed);
++      fprintf(stderr, "D3D12 SQ2: submit %llu Execute removed=0x%lx (experimental)\n", (unsigned long long)batch->submit_id, (long)sq2_exec_removed);
++      if (os_get_option("D3D12_SQ2_BISECT")) {
++         ID3D12Fence *sq2_fence = nullptr;
++         if (SUCCEEDED(screen->dev->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&sq2_fence)))) {
++            if (SUCCEEDED(screen->cmdqueue->Signal(sq2_fence, 1))) {
++               HANDLE sq2_ev = CreateEvent(NULL, FALSE, FALSE, NULL);
++               if (sq2_ev) {
++                  if (SUCCEEDED(sq2_fence->SetEventOnCompletion(1, sq2_ev)))
++                     WaitForSingleObject(sq2_ev, INFINITE);
++                  CloseHandle(sq2_ev);
++               }
++            }
++            sq2_fence->Release();
++         }
++         fprintf(stderr, "D3D12 SQ2: submit %llu bisect-wait removed=0x%lx (experimental)\n", (unsigned long long)batch->submit_id, (long)screen->dev->GetDeviceRemovedReason());
++      }
+       if (sq2_exec_removed != S_OK) {
+          ID3D12InfoQueue *sq2_iq = nullptr;
+          if (SUCCEEDED(screen->dev->QueryInterface(IID_PPV_ARGS(&sq2_iq)))) {
+diff --git a/src/gallium/drivers/d3d12/d3d12_screen.cpp b/src/gallium/drivers/d3d12/d3d12_screen.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_screen.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_screen.cpp
+@@ -765,7 +765,8 @@ get_debug_interface(util_dl_library *d3d12_mod, ID3D12DeviceFactory *factory)
+ {
+    ID3D12Debug *debug = nullptr;
+    if (factory) {
+-      factory->GetConfigurationInterface(CLSID_D3D12Debug, IID_PPV_ARGS(&debug));
++      HRESULT sq2_hr = factory->GetConfigurationInterface(CLSID_D3D12Debug, IID_PPV_ARGS(&debug));
++      fprintf(stderr, "D3D12 SQ2: debug via factory hr=0x%lx debug=%p (experimental)\n", (long)sq2_hr, (void*)debug);
+       return debug;
+    }
+ 
+@@ -774,13 +776,18 @@ get_debug_interface(util_dl_library *d3d12_mod, ID3D12DeviceFactory *factory)
+ 
+    D3D12GetDebugInterface = (PFN_D3D12_GET_DEBUG_INTERFACE)util_dl_get_proc_address(d3d12_mod, "D3D12GetDebugInterface");
+    if (!D3D12GetDebugInterface) {
++      fprintf(stderr, "D3D12 SQ2: D3D12GetDebugInterface export missing (experimental)\n");
+       debug_printf("D3D12: failed to load D3D12GetDebugInterface from D3D12.DLL\n");
+       return NULL;
+    }
+ 
+-   if (FAILED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug)))) {
++   {
++      HRESULT sq2_hr2 = D3D12GetDebugInterface(IID_PPV_ARGS(&debug));
++      fprintf(stderr, "D3D12 SQ2: D3D12GetDebugInterface hr=0x%lx debug=%p (experimental)\n", (long)sq2_hr2, (void*)debug);
++      if (FAILED(sq2_hr2)) {
+       debug_printf("D3D12: D3D12GetDebugInterface failed\n");
+       return NULL;
++      }
+    }
+ 
+    return debug;
+@@ -1595,7 +1599,9 @@ d3d12_init_screen(struct pipe_screen *screen, IUnknown *adapter)
+ #if !MESA_DEBUG
+       if (d3d12_debug & D3D12_DEBUG_DEBUG_LAYER)
+ #endif
+          enable_d3d12_debug_layer(screen->d3d12_mod, factory);
++      fprintf(stderr, "D3D12 SQ2: debuglayer flag=%d factory=%p (experimental)\n",
++              (int)!!(d3d12_debug & D3D12_DEBUG_DEBUG_LAYER), (void*)factory);
+ 
+       if (d3d12_debug & D3D12_DEBUG_GPU_VALIDATOR)
+          enable_gpu_validation(screen->d3d12_mod, factory);

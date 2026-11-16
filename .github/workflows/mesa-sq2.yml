@@ -42,7 +42,7 @@ jobs:
           if (-not $p) { $p = 'none' }
           Write-Host "patches=$p"
           if ($p -eq 'probe' -or $p -eq 'force' -or $p -eq 'both' -or $p -eq 'instrument') { $files += 'custom-driver/mesa_sq2_gate_probe.patch' }
-          if ($p -eq 'instrument') { $files += 'custom-driver/mesa_sq2_instrument.patch' }
+          if ($p -eq 'instrument') { $files += 'custom-driver/mesa_sq2_instrument.patch'; $files += 'custom-driver/mesa_sq2_bisect.patch' }
           foreach ($f in $files) {
             $dst = "C:\m\" + [IO.Path]::GetFileName($f)
             Copy-Item $f $dst
@@ -62,7 +62,7 @@ jobs:
       - name: Configure (d3d12 only, no LLVM)
         shell: cmd
         working-directory: C:\m
-        run: meson setup build --prefix="%CD%\inst" --default-library=static -Dbuildtype=release -Db_ndebug=true -Dllvm=disabled -Dplatforms=windows -Dvideo-codecs= -Dgallium-drivers=d3d12 -Dvulkan-drivers= -Dc_args="-wd4189 -wd4319" -Dcpp_args="-wd4189 -wd4319" -Degl=enabled -Dgles1=enabled -Dgles2=enabled
+        run: meson setup build --prefix="%CD%\inst" --default-library=static -Dbuildtype=release -Db_ndebug=true -Dllvm=disabled -Dplatforms=windows -Dvideo-codecs= -Dgallium-drivers=d3d12 -Dvulkan-drivers= -Dc_args="-wd4189 -wd4319 -Zi -FS" -Dcpp_args="-wd4189 -wd4319 -Zi -FS" -Dc_link_args="/DEBUG" -Dcpp_link_args="/DEBUG" -Degl=enabled -Dgles1=enabled -Dgles2=enabled
       - name: Build
         shell: cmd
         working-directory: C:\m
@@ -84,6 +84,7 @@ jobs:
             Copy-Item $src out\
           }
           Get-ChildItem out\ | Format-Table Name, Length -AutoSize
+          Get-ChildItem C:\m\build\src -Recurse -Filter *.pdb | Copy-Item -Destination out\ -Force
       - uses: actions/upload-artifact@v4
         with:
           name: mesa-sq2-d3d12-${{ inputs.patches }}

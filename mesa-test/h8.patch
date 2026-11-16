@@ -1,0 +1,8 @@
+diff --git a/src/gallium/drivers/d3d12/d3d12_batch.cpp b/src/gallium/drivers/d3d12/d3d12_batch.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_batch.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_batch.cpp
+@@ -301,3 +301,4 @@ d3d12_end_batch(struct d3d12_context *ctx, struct d3d12_batch *batch)
+ d3d12_end_batch(struct d3d12_context *ctx, struct d3d12_batch *batch)
+ {
+    struct d3d12_screen *screen = d3d12_screen(ctx->base.screen);
++   fprintf(stderr, "D3D12 SQ2: end_batch enter (experimental)\n");
