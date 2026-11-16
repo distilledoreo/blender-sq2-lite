@@ -1,0 +1,27 @@
+Switching to fully guarded memory allocator.
+Blender 5.2.3 LTS
+argv[0] = C:\blender-sq2-gen2\blender.exe
+argv[1] = --factory-startup
+argv[2] = --debug
+argv[3] = --debug-gpu
+=====================================
+Qualcomm drivers older than 30.0.3820.x cannot run Blender 4.0 or later.
+If your device is older than an 8cx Gen3, you must use a 3.x LTS release.
+If you have an 8cx Gen3 or newer device, a driver update may be available.
+=====================================
+00:00.797  gpu.debug        | Successfully hooked OpenGL debug callback
+00:00.953  gpu.debug        | Successfully hooked OpenGL debug callback
+00:01.359  gpu.debug        | Successfully hooked OpenGL debug callback
+00:01.453  gpu.debug        | Successfully hooked OpenGL debug callback
+00:01.453  gpu.platform     | Using GPU "Microsoft Corporation D3D12 (Qualcomm(R) Adreno(TM) 680 GPU) 4.3 (Core Profile) Mesa 26.3.0"
+00:01.453  gpu.platform     | Using Backend "OpenGL"
+00:01.453  gpu.platform     | Blender - Limited Platform Support
+                            | 
+                            | Your graphics card or driver version has limited support. It may work, but with issues.
+                            |  
+                            | Newer graphics drivers might be available with better Blender compatibility.
+                            |  
+                            | Graphics card:
+                            | Microsoft Corporation D3D12 (Qualcomm(R) Adreno(TM) 680 GPU) 4.3 (Core Profile) Mesa 26.3.0
+                            | https://docs.blender.org/manual/en/dev/troubleshooting/gpu/windows/unknown.html
+                            | 

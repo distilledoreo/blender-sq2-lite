@@ -38,3 +38,10 @@
 2. Record GL version string via tiny WGL `GL_VERSION` probe (clangarm64) beside Mesa DLLs, inbox vs Agility `D3D12/` subdir.
 3. Try `MESA_GL_VERSION_OVERRIDE=4.3` + `MESA_GLSL_VERSION_OVERRIDE=430` to find first real failure after context creation.
 4. Visually confirm window: `Get-Process blender | Select MainWindowTitle` while running + user screenshot of Solid viewport.
+
+## Phase1 success (2026-11-16, Gen2-lift + Mesa d3d12 + override)
+- Binary: `C:/blender-sq2-gen2/blender.exe` (CI `apply_sq2_patches.py` UNSUPPORTED->LIMITED) + `mesa-d3d12-arm64-26.3.0` app-local (`opengl32.dll`+`libEGL.dll` beside exe) + `MESA_GL_VERSION_OVERRIDE=4.3` + `MESA_GLSL_VERSION_OVERRIDE=430` + `GALLIUM_DRIVER=d3d12`.
+- Log `logs/phase1/gen2_mesa_limited_support.txt`: `Using GPU "Microsoft Corporation D3D12 (Qualcomm(R) Adreno(TM) 680 GPU) 4.3 (Core Profile) Mesa 26.3.0"`, `Blender - Limited Platform Support / may work, but with issues`, **no `will now close`**, process `STILL_UP` 18s.
+- Stock binary same setup gives `Platform Unsupported / will now close`. Gate flip is what unblocks.
+- First real API failure after context: `Mesa: error: GL_INVALID_ENUM in glGetIntegerv(pname=GL_MAX_IMAGE_UNITS)` (stock log) — inbox D3D12Core (GL 4.2 class) + 4.3 override exposes images path without TypedUAV. Needs Mesa d3d12 shader-lowering fix (Phase2) + Agility opt-in for true 4.6.
+- Gate: **d3d12 only, drop zink** (zink EGL configs=0, no native Vulkan ICD, only Dzn 1.1).

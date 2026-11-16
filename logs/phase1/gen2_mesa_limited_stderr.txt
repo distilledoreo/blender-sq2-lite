@@ -1,0 +1,17 @@
+C:\b\intern\ghost\intern\GHOST_ContextWGL.cc:533: [GetLastError() == NO_ERROR] -> Win32 Error# (18): There are no more files.
+Vendor: Microsoft Corporation
+Renderer: D3D12 (Qualcomm(R) Adreno(TM) 680 GPU)
+Version: 4.3 (Core Profile) Mesa 26.3.0
+Context Version: 4.3
+Vendor: Microsoft Corporation
+Renderer: D3D12 (Qualcomm(R) Adreno(TM) 680 GPU)
+Version: 4.3 (Core Profile) Mesa 26.3.0
+Context Version: 4.3
+Vendor: Microsoft Corporation
+Renderer: D3D12 (Qualcomm(R) Adreno(TM) 680 GPU)
+Version: 4.3 (Core Profile) Mesa 26.3.0
+Context Version: 4.3
+Vendor: Microsoft Corporation
+Renderer: D3D12 (Qualcomm(R) Adreno(TM) 680 GPU)
+Version: 4.3 (Core Profile) Mesa 26.3.0
+Context Version: 4.3
