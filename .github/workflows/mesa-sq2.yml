@@ -54,6 +54,10 @@ jobs:
             python custom-driver/apply_sq2_force.py C:\m\src\gallium\drivers\d3d12\d3d12_screen.cpp
             if ($LASTEXITCODE -ne 0) { Write-Host 'FORCE APPLY FAILED'; exit 1 }
           }
+          if ($p -eq 'instrument') {
+            python custom-driver/apply_sq2_instrument.py C:\m\src\gallium\drivers\d3d12\d3d12_batch.cpp
+            if ($LASTEXITCODE -ne 0) { Write-Host 'INSTRUMENT APPLY FAILED'; exit 1 }
+          }
           git -C C:\m status --short
       - name: Configure (d3d12 only, no LLVM)
         shell: cmd

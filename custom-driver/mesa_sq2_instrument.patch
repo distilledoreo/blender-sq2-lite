@@ -116,3 +116,12 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_draw.cpp b/src/gallium/drivers/d3d1
 +   }
  
     ctx->shader_dirty[MESA_SHADER_COMPUTE] = 0;
+diff --git a/src/gallium/drivers/d3d12/d3d12_draw.cpp b/src/gallium/drivers/d3d12/d3d12_draw.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_draw.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_draw.cpp
+@@ -1384,4 +1384,5 @@ d3d12_launch_grid(struct pipe_context *pctx, const struct pipe_grid_info *info)
+    for (unsigned i = 0; i < num_root_descriptors; ++i)
+       ctx->cmdlist->SetComputeRootDescriptorTable(root_desc_indices[i], root_desc_tables[i]);
+ 
++   fprintf(stderr, "D3D12 SQ2: recording dispatch grid=%ux%ux%u indirect=%d (experimental)\n", info->grid[0], info->grid[1], info->grid[2], indirect != nullptr);
+    if (indirect) {
