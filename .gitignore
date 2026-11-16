@@ -11,3 +11,4 @@ sq2_preview.glb
 *.zip
 *.pdb
 .DS_Store
+__pycache__/
