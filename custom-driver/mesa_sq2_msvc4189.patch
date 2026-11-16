@@ -1,0 +1,25 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: SQ2 Mesa fork
+Subject: [PATCH] d3d12: silence C4189 on bUsedAsReference in codec-less builds
+
+Build-compat only, no behavior change. With -Dvideo-codecs= (empty)
+every VIDEO_CODEC_*ENC is 0, so all switch branches that pass
+bUsedAsReference compile out and newer MSVC (VS18, cl 14.52) fires
+C4189, which Mesa promotes via /we4189 AFTER any user -Dcpp_args
+suppression -- so no flag ordering can silence it. Mark the variable
+[[maybe_unused]], matching existing precedent in this file
+(last_slice_completion_fence). mmozeiko's older MSVC never emitted
+the warning here, which is why his build.cmd needs no equivalent.
+
+diff --git a/src/gallium/drivers/d3d12/d3d12_video_enc.cpp b/src/gallium/drivers/d3d12/d3d12_video_enc.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_video_enc.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_video_enc.cpp
+@@ -763,7 +763,7 @@ d3d12_video_encoder_update_picparams_tracking
+       d3d12_video_encoder_get_current_picture_param_settings_mutable(pD3D12Enc);
+
+    enum pipe_video_format codec = u_reduce_video_profile(pD3D12Enc->base.profile);
+-   bool bUsedAsReference = false;
++   [[maybe_unused]] bool bUsedAsReference = false;
+    switch (codec) {
+ #if VIDEO_CODEC_H264ENC
+       case PIPE_VIDEO_FORMAT_MPEG4_AVC:
