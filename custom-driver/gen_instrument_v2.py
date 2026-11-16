@@ -87,7 +87,7 @@ def main():
         "+      if (sq2_exec_removed != S_OK) {",
     ] + DUMP.format(DEV="screen->dev").split("\n") + [
         "+      }",
-        "+   } else",
+        "+   }",
     ]
     # H6 anchor (draw.cpp, after dispatch bookkeeping)
     h6_anchor = (
@@ -126,7 +126,6 @@ def main():
     hunk.append("+" + h4_adds2[0][1:])
     for ln in old[2:]:
         hunk.append(" " + ln if ln else " ")
-    hunk.append(" ")
     out.extend(hunk)
 
     # H5 via emit with insertion after line index 2 (after Execute line)
@@ -143,7 +142,6 @@ def main():
     hunk5.extend(h5_adds)
     for ln in old5[2:]:
         hunk5.append(" " + ln if ln else " ")
-    hunk5.append(" ")
     out.extend(hunk5)
 
     # H6

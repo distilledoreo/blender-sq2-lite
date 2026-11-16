@@ -53,7 +53,6 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_batch.cpp b/src/gallium/drivers/d3d
        batch->has_errors = true;
        return;
     }
- 
 diff --git a/src/gallium/drivers/d3d12/d3d12_batch.cpp b/src/gallium/drivers/d3d12/d3d12_batch.cpp
 --- a/src/gallium/drivers/d3d12/d3d12_batch.cpp
 +++ b/src/gallium/drivers/d3d12/d3d12_batch.cpp
@@ -82,10 +81,9 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_batch.cpp b/src/gallium/drivers/d3d
 +            sq2_iq->Release();
 +         }
 +      }
-+   } else
++   }
     else
        batch->has_errors = true;
- 
 diff --git a/src/gallium/drivers/d3d12/d3d12_draw.cpp b/src/gallium/drivers/d3d12/d3d12_draw.cpp
 --- a/src/gallium/drivers/d3d12/d3d12_draw.cpp
 +++ b/src/gallium/drivers/d3d12/d3d12_draw.cpp
