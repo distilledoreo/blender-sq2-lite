@@ -135,3 +135,76 @@ Log: `logs/phase1/blender_force.log`, crash: `logs/phase1/blender_force_crash.tx
   the optional table are `UNORM_16_16` and `UFLOAT_11_11_10`, both
   32-bit texels (the existing cast-lowering case). Inference until the
   per-format fix is measured — next step is that fix, not more force runs.
+
+## Ordered next steps — results (`instrument` build, run 43938927551)
+
+### 1. Instrumented failure (log: `logs/phase1/blender_instrument.log`)
+
+Build `instrument` = msvc + probe + force applier + `mesa_sq2_instrument.patch`
+(buffer-create failure print; compute PSO + dispatch checkpoints). Blender
+launch recipe identical to the force run (force env + 4.3/430 override).
+
+- `compute PSO created, removed=0x0` — pipeline creation succeeds.
+- `compute dispatch #1 grid=1x1x1 indirect=0 removed=0x0` — exactly ONE
+  dispatch is ever recorded, device healthy at record time.
+- Then the known cascade: `draw_command_generate ComputeShader` compiles,
+  `GL_OUT_OF_MEMORY in glBufferData` ×N, `GL_INVALID_VALUE in
+  glBufferSubData` (sizes 288, 96 over buffer 0).
+- Terminal `resource create FAILED hr=0x887a0005 size=32 bind=0x8
+  usage=0 target=2 removed=0x887a0001`: hr = `DXGI_ERROR_DEVICE_REMOVED`,
+  reason = `0x887a0001` = `DXGI_ERROR_DEVICE_HUNG`.
+- Enum decode (26.3.0 `p_defines.h`): bind `0x8` = `PIPE_BIND_SAMPLER_VIEW`,
+  target `2` = `PIPE_TEXTURE_2D`, usage `0` = `PIPE_USAGE_DEFAULT`. This is
+  a sampled 2D texture, not a compute buffer/SSBO (those are
+  `SHADER_BUFFER`/`SHADER_IMAGE`) — it is fallout on an already-hung device,
+  not the root cause. Likewise the early OOMs come from the buffer-manager
+  path, not `create_or_place` (which printed only this once, at the end).
+- Crash signature unchanged from the force run: read AV at `0x4C` in
+  `libgallium_wgl!mesa_glapi_get_proc_address` during `st_screen_destroy`
+  (`logs/phase1/blender_instrument_crash.txt`).
+- Honest caveat: `launch_grid` RECORDS into a deferred cmdlist, so
+  `removed=0x0` on dispatch #1 means "healthy up to record time", not
+  "dispatch executed fine". The hang is inferred: one dispatch recorded,
+  everything after it fails, device reports HUNG. Per the decision table
+  this is row 1 — driver fault after a compute dispatch; the minimal
+  compute test is the next isolation step.
+
+### 2. Launch conditions — stated
+
+The force and instrument Blender runs used `MESA_GL_VERSION_OVERRIDE=4.3`
++ `MESA_GLSL_VERSION_OVERRIDE=430` (see `Version: 4.3 (Core Profile)` in
+both logs). The natural no-override context with force is **4.2**. Blender
+requests 4.3; under the override it gets a reported-4.3 context on a 4.2
+driver. A no-override Blender launch on the forced 4.2 driver is untested.
+
+### 3. Last successful step
+
+`draw_command_generate ComputeShader` is a COMPILE notification (same
+`WARNING <name> <stage>:` pattern as the two VertShader lines above it),
+not a dispatch. Last completed record: compute dispatch #1 (1x1x1,
+`removed=0x0`). Last completed GPU-side execution: unknown (deferred
+cmdlist) — the first observable failure is `GL_OUT_OF_MEMORY in
+glBufferData` immediately after the compile line.
+
+### 4. Agility + force-on — version recorded
+
+- Gate confirmed: `st_extensions.c:1111`
+  `EXT_CAP(ARB_texture_view, sampler_view_target)`;
+  `d3d12_screen.cpp:417` sets `sampler_view_target =
+  opts12.RelaxedFormatCastingSupported` from the `D3D12_OPTIONS12` query.
+- Force + Agility SDK 1.619.5 (full redist: Core + SDKLayers, exe-relative
+  next to the loading exe): core probe reports **4.2, 202 exts, compute
+  present, no `ARB_texture_view`** — identical to force on the inbox
+  runtime. Absolute-path and exe-relative layouts agree; the earlier
+  "Agility 4.1" test ran with the image gate closed so it could not show
+  this. QC caps do not include relaxed format casting on this driver.
+- mmozeiko's "inbox 4.2, Agility 4.6" remains unexplained by caps here —
+  left as an open discrepancy, not a contradiction of the measurement.
+
+### 5. Texture views on the Solid path under the override
+
+`blender.exe` references `glTextureView` (×1) and `GPU_texture_create_view`
+(×1). With the 4.3 override, Blender resolves the core-4.3 entry point on
+a driver that does not expose `ARB_texture_view`. Whether the Solid path
+actually calls it before the compute failure is not yet in the logs — the
+run dies in startup sync first. Flagged for the per-format-fix runs.
