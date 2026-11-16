@@ -1,16 +1,7 @@
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: SQ2 Mesa fork
-Subject: [PATCH] d3d12: log SQ2 gate inputs (TypedUAV, shader model, per-format load/store)
-
-Temporary debug for the SQ2 (Adreno 680 / 27.x) bring-up. Run with
-D3D12_DEBUG=verbose. Decides the image-lowering design: flag false means
-emulation for every format Blender reads; flag true with a few failing
-formats means extend d3d12_lower_image_casts for those formats only.
-
 diff --git a/src/gallium/drivers/d3d12/d3d12_screen.cpp b/src/gallium/drivers/d3d12/d3d12_screen.cpp
 --- a/src/gallium/drivers/d3d12/d3d12_screen.cpp
 +++ b/src/gallium/drivers/d3d12/d3d12_screen.cpp
-@@ -921,6 +921,8 @@ can_shader_image_load_all_formats(struct d3d12_screen *screen)
+@@ -921,3 +921,7 @@ can_shader_image_load_all_formats(struct d3d12_screen *screen)
  {
 +   /* fprintf: debug_printf compiles out in release builds; the CI fork
 +    * builds release, so this table must print unconditionally. */
@@ -18,8 +9,7 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_screen.cpp b/src/gallium/drivers/d3
 +           (int)screen->opts.TypedUAVLoadAdditionalFormats);
     if (!screen->opts.TypedUAVLoadAdditionalFormats)
        return false;
-
-@@ -947,12 +949,17 @@ can_shader_image_load_all_formats(struct d3d12_screen *screen)
+@@ -947,10 +951,16 @@ can_shader_image_load_all_formats(struct d3d12_screen *screen)
     for (unsigned i = 0; i < ARRAY_SIZE(additional_formats); ++i) {
        D3D12_FEATURE_DATA_FORMAT_SUPPORT support = { additional_formats[i] };
 -      if (FAILED(screen->dev->CheckFeatureSupport(D3D12_FEATURE_FORMAT_SUPPORT, &support, sizeof(support))) ||
@@ -38,12 +28,11 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_screen.cpp b/src/gallium/drivers/d3
 +      if (!tuav || !load || !store)
           return false;
     }
-
+ 
     return true;
- }
-@@ -1730,6 +1737,9 @@ d3d12_init_screen(struct d3d12_screen *screen)
+@@ -1730,3 +1740,6 @@ d3d12_init_screen(struct d3d12_screen *screen)
              screen->max_shader_model = static_cast<dxil_shader_model>(((shader_model.HighestShaderModel & 0xf0) << 12) |
-                                                                      (shader_model.HighestShaderModel & 0xf));
+                                                                       (shader_model.HighestShaderModel & 0xf));
 +            fprintf(stderr, "D3D12 SQ2: highest shader model 0x%x, max feature level 0x%x\n",
 +                    (unsigned)shader_model.HighestShaderModel,
 +                    (unsigned)screen->max_feature_level);

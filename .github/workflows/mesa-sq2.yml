@@ -37,21 +37,18 @@ jobs:
       - name: Apply SQ2 patches
         shell: pwsh
         run: |
-          Copy-Item custom-driver/mesa_sq2_msvc4189.patch C:\m\msvc.patch
-          git -C C:\m apply --check msvc.patch
-          git -C C:\m apply msvc.patch
+          $files = @('custom-driver/mesa_sq2_msvc4189.patch')
           $p = '${{ inputs.patches }}'
           if (-not $p) { $p = 'none' }
           Write-Host "patches=$p"
-          if ($p -eq 'probe' -or $p -eq 'force' -or $p -eq 'both') {
-            Copy-Item custom-driver/mesa_sq2_gate_probe.patch C:\m\probe.patch
-            git -C C:\m apply --check probe.patch
-            git -C C:\m apply probe.patch
-          }
-          if ($p -eq 'force' -or $p -eq 'both') {
-            Copy-Item custom-driver/mesa_sq2_force_images.patch C:\m\force.patch
-            git -C C:\m apply --check force.patch
-            git -C C:\m apply force.patch
+          if ($p -eq 'probe' -or $p -eq 'force' -or $p -eq 'both') { $files += 'custom-driver/mesa_sq2_gate_probe.patch' }
+          if ($p -eq 'force' -or $p -eq 'both') { $files += 'custom-driver/mesa_sq2_force_images.patch' }
+          foreach ($f in $files) {
+            $dst = "C:\m\" + [IO.Path]::GetFileName($f)
+            Copy-Item $f $dst
+            git -C C:\m apply --stat $dst; if ($LASTEXITCODE -ne 0) { Write-Host "PATCH PARSE FAILED: $f"; exit 1 }
+            git -C C:\m apply --check $dst; if ($LASTEXITCODE -ne 0) { Write-Host "PATCH CHECK FAILED: $f"; exit 1 }
+            git -C C:\m apply $dst; if ($LASTEXITCODE -ne 0) { Write-Host "PATCH APPLY FAILED: $f"; exit 1 }
           }
           git -C C:\m status --short
       - name: Configure (d3d12 only, no LLVM)
