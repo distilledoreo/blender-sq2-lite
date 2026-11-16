@@ -1,0 +1,44 @@
+D3D12 SQ2: highest shader model 0x61, max feature level 0xc100
+D3D12 SQ2: TypedUAVLoadAdditionalFormats=1
+D3D12 SQ2: fmt 11 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 13 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 16 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 17 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 18 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 24 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 25 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 26 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 31 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 34 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 35 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 36 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 37 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 38 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 49 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 50 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 51 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 52 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 56 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 58 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 63 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
