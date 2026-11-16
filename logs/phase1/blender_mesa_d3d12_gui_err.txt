@@ -1,0 +1,1 @@
+C:\b\intern\ghost\intern\GHOST_ContextWGL.cc:533: [GetLastError() == NO_ERROR] -> Win32 Error# (18): There are no more files.

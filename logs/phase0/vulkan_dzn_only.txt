@@ -1,0 +1,5 @@
+Blender 5.2.3 LTS vulkan background probe on SQ2:
+WARNING Device [Microsoft Direct3D12 (Qualcomm(R) Adreno(TM) 680 GPU)] missing [multi viewport, logical operations, dual source blending, buffer device address, VK_EXT_provoking_vertex]
+WARNING Device [Microsoft Direct3D12 (Microsoft Basic Render Driver)] missing [multi viewport, logical operations, dual source blending, VK_EXT_provoking_vertex]
+ERROR No Vulkan device found that meets the minimum requirements.
+Conclusion: only Dzn (Vulkan-on-D3D12, 1.1) present, no native Qualcomm ICD in HKLM\SOFTWARE\Khronos\Vulkan\Drivers.
