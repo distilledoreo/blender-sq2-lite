@@ -1,95 +1,79 @@
 #!/usr/bin/env python3
-"""Apply SQ2 Gen2 lift + EEVEE-SQ2 raster flag together (robust, search-based).
+"""Apply SQ2 Gen2 lift (GL + Vulkan, robust).
 
-Target: C:\\b\\source\\blender\\gpu\\opengl\\gl_backend.cc (Blender v5.2.3)
-- Gen2 lift: epoxy>=43 hard fail -> LIMITED; Qualcomm <30.0.3820 UNSUPPORTED -> LIMITED + fence compute.
-- EEVEE-SQ2: env SQ2_EEVEE_RASTER checked in fenced block (no eevee_pipeline change needed for boot).
-- Shader rewrite (gl_BaseInstance/imageLoad) is runtime via dxil_rewrite.py, not here.
-
-Idempotent, logs what it changed, never fails the build (exits 0 even if patterns shift).
+Patches (all single-token UNSUPPORTED->LIMITED, no brace changes):
+- gl_backend.cc: epoxy>=43, Qualcomm ver0<30 block, SSBO<12 (generic fallback).
+- vk_backend.cc: first UNSUPPORTED -> LIMITED (Vulkan 1.1 vs 1.3 gate).
+Never fails build (exits 0).
 Usage: python apply_sq2_patches.py C:\\b
 """
-import sys
+import sys, re
 from pathlib import Path
-import re
 
-# 5.2 renamed GCaps/GLContext members (4.2 names no longer exist) — fence as no-op comment
-# to stay compilable. Level flip UNSUPPORTED->LIMITED is what opens the GUI; caps stay stock.
-# EEVEE compute is fenced at runtime via SQ2_EEVEE_RASTER + dxil_rewrite, not here.
 FENCE = (
-    "\n    /* SQ2 Gen2 lift: keep going, Workbench-safe. Caps untouched for 5.2 API compat. */\n"
-    "    /* SQ2_EEVEE_RASTER runtime flag handled by dxil_rewrite, no source change here. */\n"
+    "\n    /* SQ2 Gen2 lift: Workbench-safe. Caps untouched for 5.2 API compat. */\n"
+    "    /* SQ2_EEVEE_RASTER runtime flag handled by dxil_rewrite. */\n"
 )
 
-def patch_gl_backend(root: Path) -> dict:
-    stats = {"patched_version_check": False, "patched_qualcomm": False, "patched_ssbo": False, "patched_raster_env": True}
-    p = root / "source" / "blender" / "gpu" / "opengl" / "gl_backend.cc"
-    if not p.exists():
-        print(f"[SQ2] MISSING {p}, skipping (build continues stock)")
+def flip_next_unsupported(text: str, marker: str, window: int = 2000):
+    idx = text.find(marker)
+    if idx < 0:
+        # try without spaces
+        idx = text.find(marker.replace(" ", ""))
+        if idx < 0:
+            return text, False
+    tail = text[idx:idx + window]
+    tail2 = tail.replace("GPU_SUPPORT_LEVEL_UNSUPPORTED", "GPU_SUPPORT_LEVEL_LIMITED /* SQ2 Gen2 */", 1)
+    if tail2 == tail:
+        return text, False
+    return text[:idx] + tail2 + text[idx + window:], True
+
+def patch_file(path: Path, markers):
+    stats = {}
+    if not path.exists():
+        print(f"[SQ2] MISSING {path}")
         return stats
-    t = p.read_text(encoding="utf-8", errors="ignore")
+    t = path.read_text(encoding="utf-8", errors="ignore")
     orig = t
-
-    # 1. epoxy >=43 -> LIMITED (single-token, no braces).
-    t2 = re.sub(
-        r"(if\s*\(\s*!\s*\(\s*epoxy_gl_version\(\)\s*>=\s*43\s*\)\s*\)\s*\{[^}]*?support_level\s*=\s*)GPU_SUPPORT_LEVEL_UNSUPPORTED",
-        r"\1GPU_SUPPORT_LEVEL_LIMITED /* SQ2: was UNSUPPORTED (allow 4.2 Workbench) */",
-        t, count=1)
-    if t2 != t:
-        stats["patched_version_check"] = True
-        t = t2
-        print("[SQ2] patched epoxy version check -> LIMITED")
-    else:
-        print("[SQ2] WARN epoxy pattern not found, continuing")
-
-    # 2. Qualcomm: insert fence AFTER the opening brace of the ver0<30 block.
-    # Condition spans lines (ver0<30 || (ver0==30 ...)), so never touch the condition itself.
-    idx_q = t.find("ver0 < 30")
-    if idx_q < 0:
-        idx_q = t.find("ver0<30")
-    if idx_q >= 0:
-        brace = t.find("{", idx_q)
-        if 0 < brace - idx_q < 800:
-            t = t[:brace + 1] + FENCE + t[brace + 1:]
-            print("[SQ2] fenced Qualcomm block after opening brace")
-            # Flip first UNSUPPORTED within ~2000 chars after brace to LIMITED.
-            head, tail = t[:brace + 1 + len(FENCE)], t[brace + 1 + len(FENCE):]
-            tail_head = tail[:2000]
-            tail_head2 = tail_head.replace("GPU_SUPPORT_LEVEL_UNSUPPORTED", "GPU_SUPPORT_LEVEL_LIMITED /* SQ2 Gen2 */", 1)
-            if tail_head2 != tail_head:
-                t = head + tail_head2 + tail[2000:]
-                stats["patched_qualcomm"] = True
-                print("[SQ2] patched Qualcomm UNSUPPORTED -> LIMITED")
-            else:
-                stats["patched_qualcomm"] = True
-                print("[SQ2] fence inserted, UNSUPPORTED flip missed (check source shift)")
-        else:
-            print(f"[SQ2] WARN Qualcomm brace too far ({brace - idx_q}), skipping fence")
-    else:
-        print("[SQ2] WARN Qualcomm ver0<30 not found, continuing")
-
-    # 3. SSBO check -> LIMITED (single-token).
-    t2 = re.sub(
-        r"(max_ssbo_binds\s*<\s*12[^;{]*\{\s*support_level\s*=\s*)GPU_SUPPORT_LEVEL_UNSUPPORTED",
-        r"\1GPU_SUPPORT_LEVEL_LIMITED /* SQ2: was UNSUPPORTED */",
-        t, count=1)
-    if t2 != t:
-        stats["patched_ssbo"] = True
-        t = t2
-        print("[SQ2] patched SSBO<12 -> LIMITED")
-
+    # Fence: insert after opening brace of first marker block (if found).
+    for m in markers:
+        idx = t.find(m)
+        if idx < 0:
+            idx = t.find(m.replace(" ", ""))
+        if idx >= 0:
+            brace = t.find("{", idx)
+            if 0 < brace - idx < 800:
+                t = t[:brace + 1] + FENCE + t[brace + 1:]
+                print(f"[SQ2] fenced {path.name} after '{m}'")
+                break
+    # Flip next UNSUPPORTED after each marker.
+    for m in markers:
+        t, ok = flip_next_unsupported(t, m)
+        stats[m] = ok
+        print(f"[SQ2] {'patched' if ok else 'MISS'} {path.name} :: {m}")
     if t != orig:
-        p.write_text(t, encoding="utf-8")
-        print(f"[SQ2] wrote {p}")
-    else:
-        print("[SQ2] no changes (patterns shifted? stock continues)")
+        path.write_text(t, encoding="utf-8")
+        print(f"[SQ2] wrote {path}")
     return stats
 
 def main():
     root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("C:/b")
-    print(f"[SQ2] applying Gen2+EEVEE patches in {root}")
-    stats = patch_gl_backend(root)
-    print(f"[SQ2] done: {stats}")
+    print(f"[SQ2] applying Gen2 lift in {root}")
+    gl = root / "source" / "blender" / "gpu" / "opengl" / "gl_backend.cc"
+    vk = root / "source" / "blender" / "gpu" / "vulkan" / "vk_backend.cc"
+    s1 = patch_file(gl, ["epoxy_gl_version() >= 43", "ver0 < 30", "max_ssbo_binds"])
+    # SSBO generic: if max_ssbo_binds marker missed, flip any SSBO-related UNSUPPORTED
+    # (already covered by marker search above).
+    s2 = patch_file(vk, ["VK_API_VERSION_1_3", "dynamic_rendering", "timelineSemaphore", "VK_KHR_dynamic_rendering"])
+    # Vulkan fallback: if none matched (names shift), flip first UNSUPPORTED in file to LIMITED.
+    if not any(s2.values()):
+        t = vk.read_text(encoding="utf-8", errors="ignore") if vk.exists() else ""
+        if "GPU_SUPPORT_LEVEL_UNSUPPORTED" in t:
+            t = t.replace("GPU_SUPPORT_LEVEL_UNSUPPORTED", "GPU_SUPPORT_LEVEL_LIMITED /* SQ2 Gen2 vulkan */", 1)
+            vk.write_text(t, encoding="utf-8")
+            print("[SQ2] Vulkan fallback: flipped first UNSUPPORTED -> LIMITED")
+            s2["fallback"] = True
+    print(f"[SQ2] done gl={s1} vk={s2}")
     return 0
 
 if __name__ == "__main__":
