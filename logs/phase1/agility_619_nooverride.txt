@@ -1,0 +1,13 @@
+VENDOR=Microsoft Corporation
+RENDERER=D3D12 (Qualcomm(R) Adreno(TM) 680 GPU)
+VERSION=4.1 (Compatibility Profile) Mesa 26.3.0
+GLSL=4.10
+NUM_EXT=274
+EXT* GL_AMD_multi_draw_indirect
+EXT* GL_ARB_clip_control
+EXT* GL_ARB_multi_draw_indirect
+EXT* GL_ARB_shader_draw_parameters
+EXT* GL_ARB_shader_storage_buffer_object
+EXT* GL_EXT_multi_draw_arrays
+EXT* GL_SUN_multi_draw_arrays
+EXT_DUMP_DONE n=274

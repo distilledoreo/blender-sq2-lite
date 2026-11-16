@@ -12,3 +12,9 @@
 4. Agility cheapest experiment: **blocked without a Blender patch**. `D3D12GetInterface hr=0x80004002`, same GL 4.1 with/without attempt. Per MS docs the app-local runtime requires `D3D12SDKVersion`+`D3D12SDKPath` exported from the main exe (or `SetSDKVersion`, which this inbox lacks). Next step is a 2-export Blender test build + `D3D12/` dir, then re-run WGL probe with no override. No Mesa code until that number exists.
 
 5. Gate: Gen2-lift+Mesa+override stays up 18s with `Limited Platform Support`, but **no screenshot of default cube/Solid orbit exists**. Treat as "dialog survived", not "viewport works". Owner to provide screenshot.
+
+## Agility result (2026-11-16, probe exe with D3D12SDKVersion=619 exports)
+- Probe `mesa-test/agility_probe.c` built in CI (`agility-probe-arm64`, 143KB ARM64), exports `D3D12SDKVersion=619` + `D3D12SDKPath=".\D3D12\\"`.
+- Inbox control (exports present, `D3D12/` hidden): `ChoosePixelFormat failed 126` — loader enforces app-local runtime when exe opts in. Exports active.
+- Agility (`D3D12/` with 1.619.5 ARM64 `D3D12Core.dll` present), no GL override: `VERSION=4.1 Compatibility Mesa 26.3.0`, `NUM_EXT=274`, same set as inbox (clip_control/draw_parameters/SSBO/multi_draw present; compute + image_load_store absent). Full: `logs/phase1/agility_619_nooverride.txt`.
+- Decision-table row = **below 4.3**. Agility replaces the runtime but not the Qualcomm caps (FL max 12_1, driver 27.x). No Mesa fork yet; Phase 2 = map each missing GL 4.2/4.3 feature to the D3D12 cap in Mesa `d3d12_screen` (TypedUAV/images, compute/SM, etc.), starting from the two absent exts above.
