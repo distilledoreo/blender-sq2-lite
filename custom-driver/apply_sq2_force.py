@@ -18,6 +18,12 @@ import sys
 
 PATH = sys.argv[1]
 src = open(PATH, "r", newline="").read()
+# CI checks out CRLF (runner default) regardless of clone flags; git apply
+# tolerates that, plain string matching does not. Normalize to LF for
+# matching; output stays LF, which MSVC and ninja accept. (Proven: a CRLF
+# copy reproduces CI's `site 1: found 0` byte-for-byte.)
+print(f"line endings: CRLF={src.count(chr(13))} lines")
+src = src.replace("\r\n", "\n")
 
 OLD1 = """   if (!screen->opts.TypedUAVLoadAdditionalFormats)
       return false;
@@ -43,7 +49,12 @@ NEW2 = """      if (!tuav || !load || !store) {
 for i, (old, new) in enumerate(((OLD1, NEW1), (OLD2, NEW2)), 1):
     n = src.count(old)
     print(f"site {i}: found {n} occurrence(s)")
-    assert n == 1, f"expected exactly 1 match for site {i}, found {n}"
+    if n != 1:
+        anchor = old.strip().splitlines()[0]
+        print(f"anchor line occurs {src.count(anchor)} time(s)")
+        j = src.find(anchor)
+        print("context: " + (repr(src[max(0, j-120):j+200]) if j >= 0 else "anchor absent"))
+        raise SystemExit(f"expected exactly 1 match for site {i}, found {n}")
     src = src.replace(old, new)
 
 open(PATH, "w", newline="").write(src)
