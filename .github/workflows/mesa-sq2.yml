@@ -27,7 +27,7 @@ jobs:
         shell: pwsh
         run: |
           pip install meson mako pyyaml
-          choco uninstall -y winflexbison
+          choco uninstall -y winflexbison; $LASTEXITCODE = 0
           choco install -y ninja winflexbison3
           meson --version; ninja --version; win_flex --version
       - name: Clone Mesa 26.3.0 (matches measured DLLs)
@@ -54,11 +54,11 @@ jobs:
       - name: Configure (d3d12 only, no LLVM)
         shell: cmd
         working-directory: C:\m
-        run: >
+        run: >-
           meson setup build --prefix="%CD%\inst"
           --default-library=static -Dbuildtype=release -Db_ndebug=true
-          -Dllvm=disabled -Dplatforms=windows -Dvideo-codecs=
-          -Dgallium-drivers=d3d12 -Dvulkan-drivers=
+                    -Dllvm=disabled -Dplatforms=windows -Dvideo-codecs= -Dgallium-drivers=d3d12 -Dvulkan-drivers=
+          -Dc_args="-wd4189 -wd4319"
           -Degl=enabled -Dgles1=enabled -Dgles2=enabled
       - name: Build
         shell: cmd
