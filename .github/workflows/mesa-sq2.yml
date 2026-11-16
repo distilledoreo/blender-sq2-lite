@@ -26,7 +26,7 @@ jobs:
       - name: Tools (meson, ninja, flex/bison)
         shell: pwsh
         run: |
-          pip install meson
+          pip install meson mako pyyaml
           choco install -y ninja winflexbison
           meson --version; ninja --version; win_flex --version
       - name: Clone Mesa 26.3.0 (matches measured DLLs)
