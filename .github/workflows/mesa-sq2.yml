@@ -27,7 +27,8 @@ jobs:
         shell: pwsh
         run: |
           pip install meson mako pyyaml
-          choco install -y ninja winflexbison
+          choco uninstall -y winflexbison
+          choco install -y ninja winflexbison3
           meson --version; ninja --version; win_flex --version
       - name: Clone Mesa 26.3.0 (matches measured DLLs)
         shell: pwsh
