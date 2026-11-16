@@ -238,7 +238,42 @@ not yet reduced (no-SSBO variant untested).
 no GL error, no removal, just a record-path NULL AV. It needs the layer
 to name the call — which is blocked (next).
 
-### Debug layer — blocked
+### Validated minimal test + WARP + bisect + debug-hr (build `instrument` run 43976031237)
+
+- **Validated test** (`mesa-test/compute_min_validated.py`): full
+`argtypes`/`restype` on every GL call (64-bit-safe `GLsizeiptr`/`GLintptr`),
+`glGetError` after every call, `GL_BUFFER_SIZE` read back per buffer, and
+**three SSBOs** mirroring `end_sync` (shader touches bindings 0,1,2).
+Result: all sizes 16, zero GL errors — then the **same AV in `glFlush`**
+before the recording-dispatch print, with three fence-verified healthy
+submits (`bisect-wait removed=0x0`) ahead of it. The ctypes-truncation
+and zero-size-buffer variants of the test-defect hypothesis are refuted;
+the record-path AV is real and CPU-side. Blender's disagreement (it
+records dispatches fine) stands unexplained — something else differs
+between its dispatch and the minimal one.
+- **WARP control — blocked on-device.** `MESA_D3D12_DEFAULT_ADAPTER_NAME`
+is real (Mesa docs; case-insensitive substring) but has **no effect on
+this WGL path**: UNSET/Basic/WARP/Adreno all yield `D3D12 (Qualcomm(R)
+Adreno(TM) 680 GPU)`. `LIBGL_ALWAYS_SOFTWARE=1` (the EnumWarpAdapter
+branch) yields **no context at all** with empty stderr. There is no
+working WARP D3D12 device on this machine, so no table row can be
+checked that way.
+- **Bisect names the failing submit** (log `logs/phase1/blender_bisect.log`):
+compute batch = submit `...665`, flushed+waited `0x0`; the **very next
+submit `...666` reports `INVALID_CALL` on Execute and the fence-wait
+confirms it**. First failing operation, exactly attributed. Blender-side
+it lands right after the `draw_command_generate ComputeShader` compile
+warning, before the OOM cascade. What that submit contains (graphics
+root-sig / heap / PSO restore after compute) is the next trace.
+- **Debug-hr prints: init dies before them.** With
+`D3D12_DEBUG=debuglayer`, context creation fails with **zero SQ2 lines**
+— not even the new factory/`D3D12GetDebugInterface`/flag prints — so
+`get_debug_interface` is never reached; `init_screen` dies before it.
+The Graphics Tools install (`DISM ... Tools.Graphics.DirectX...`) still
+needs an elevated prompt (user action). PDBs now ship in the CI artifact
+for a future symbolized stack.
+
+### Debug layer — blocked (original note)
 
 - `D3D12_DEBUG=debuglayer` (confirmed token in 26.3.0 source) **kills
 context creation entirely** (no 4.2 ctx, driver never inits) — even with
