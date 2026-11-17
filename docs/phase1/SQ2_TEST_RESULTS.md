@@ -369,6 +369,14 @@ compute-written buffer) with the post-compute state left behind. The
 state-fixup cmdlist submitted alongside is also a candidate; per-command
 fence-wait would separate them (next).
 
+Step-1 read (no build): **301 draws recorded before the compute batch**
+(`blender_cmdtrace.log` lines < 934), including indexed draws
+(`mode=4 count=18 indexed=1`), across multiple submits — and **zero
+nonzero removals anywhere pre-compute** (e.g. submit `51539607568`
+with many draws: Execute `0x0`, fence-wait `0x0`). Earlier draws
+succeed, so the compute link holds: basic (and indexed) drawing works,
+and the defect is specific to the post-compute submit.
+
 Texture views (step 2): three `glTextureView` calls precede the compute
 batch (`target=0xDE1` = TEXTURE_2D; formats `0x8234`/`0x881A`/`0x822F`),
 **zero sampler-view mismatches** (view format/target always agreed with
