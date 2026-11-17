@@ -23,9 +23,11 @@ Setup per run: clone Blender `v3.6.23` → clone `lib-windows_arm64`
 
 | 11 | 44137370636 | `blenlib/intern/system.c(126): error C4013: '__cpuid' undefined; assuming extern returning int` | `BLI_cpu_brand_string()` / `BLI_cpu_support_sse41()` call MSVC's `__cpuid` intrinsic, which only exists for x86; 3.6 has no ARM guard | `0005-blenlib-cpuid-x86-only.patch`: `#if !defined(_M_ARM64)` around both CPUID blocks, the CPU brand falls back to the registry `VendorIdentifier` (`advapi32` is already in the 3.6 Windows link list), SSE4.1 reports 0; same shape as upstream 4.2 |
 
+| 12 | 44144435107 | `system_win32.c(145): error C2039: 'Rip': is not a member of '_CONTEXT'` and `BKE_customdata.h(687): error C2220` (warning C5287) | crash backtrace read the x64 register names `Rip`/`Rsp` and always walked as `IMAGE_FILE_MACHINE_AMD64`; and the `CD_FAKE_*` layer ids OR the `CD_FAKE` int enum with `eCustomDataType` enum values, which MSVC 14.4x warns about and `/WX` turns into an error | `0006`: `_M_AMD64`/`_M_ARM64` split using `Pc`/`Fp`/`Sp` and `IMAGE_FILE_MACHINE_ARM64`, copied from upstream 4.2; `0007`: `(int)` casts on the four mixed-type values, verified locally against MSVC 14.51 (`C5287` reproduces without the cast, absent with it) |
+
 Progress markers: run 7 reached `[1746/4757]` objects before the GHOST error,
 run 8 reached `[2029/4757]`, run 10 reached `[2432/4757]`, run 11 reached
-`[3429/4757]`.
+`[3429/4757]`, run 12 reached `[3449/4757]`.
 
 Reusable helpers:
 

@@ -1,0 +1,30 @@
+--- a/source/blender/blenkernel/BKE_customdata.h
++++ b/source/blender/blenkernel/BKE_customdata.h
+@@ -684,9 +684,12 @@
+   CD_FAKE = 1 << 8,
+ 
+   /* Vertices. */
+-  CD_FAKE_MDEFORMVERT = CD_FAKE | CD_MDEFORMVERT, /* *sigh* due to how vgroups are stored :(. */
++  /* The casts keep MSVC 14.4x from complaining (C5287) about OR-ing two different enum types
++   * where warnings are errors; the values are unchanged. */
++  CD_FAKE_MDEFORMVERT = CD_FAKE |
++                        (int)CD_MDEFORMVERT, /* *sigh* due to how vgroups are stored :(. */
+   CD_FAKE_SHAPEKEY = CD_FAKE |
+-                     CD_SHAPEKEY, /* Not available as real CD layer in non-bmesh context. */
++                     (int)CD_SHAPEKEY, /* Not available as real CD layer in non-bmesh context. */
+ 
+   /* Edges. */
+   CD_FAKE_SEAM = CD_FAKE | 100, /* UV seam flag for edges. */
+@@ -694,10 +697,10 @@
+   /* Multiple types of mesh elements... */
+   CD_FAKE_UV =
+       CD_FAKE |
+-      CD_PROP_FLOAT2, /* UV flag, because we handle both loop's UVs and poly's textures. */
++      (int)CD_PROP_FLOAT2, /* UV flag, because we handle both loop's UVs and poly's textures. */
+ 
+   CD_FAKE_LNOR = CD_FAKE |
+-                 CD_CUSTOMLOOPNORMAL, /* Because we play with clnor and temp lnor layers here. */
++                 (int)CD_CUSTOMLOOPNORMAL, /* Because we play with clnor and temp lnor layers here. */
+ 
+   CD_FAKE_SHARP = CD_FAKE | 200, /* Sharp flag for edges, smooth flag for faces. */
+ };
