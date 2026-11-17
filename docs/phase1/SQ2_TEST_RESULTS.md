@@ -344,3 +344,43 @@ glBufferData` immediately after the compile line.
 a driver that does not expose `ARB_texture_view`. Whether the Solid path
 actually calls it before the compute failure is not yet in the logs — the
 run dies in startup sync first. Flagged for the per-format-fix runs.
+
+### Command list for the failing submit (build `instrument` run 43992747997, log `logs/phase1/blender_cmdtrace.log`)
+
+`mesa_sq2_cmdtrace.patch` (validated exact-apply against real 26.3.0
+sources; one ghost hunk needed trailing context — same signature as
+before): per-draw tags (mode/count/indexed/indirect + submit id),
+indirect-draw tag, copytex/copybuf tags, flush-trigger tag, plus
+`glTextureView` and sampler-view-mismatch prints. Failing submit
+`...666` (deterministic id across builds) contains exactly:
+
+```text
+submit 154618822665 flushed+waited, removed=0x0   <- compute batch healthy
+submit 154618822666:
+  draw mode=6 count=4 indexed=0 indirect=0         <- TRIANGLE_FAN, 4 verts
+  draw mode=4 count=6 indexed=1 indirect=0         <- TRIANGLE_STRIP, 6 indices
+  copybuf width=16
+  flush -> end_batch -> Execute INVALID_CALL (fence-wait confirms)
+```
+
+No indirect draws, no copytex in the submit. Per the reading table:
+ordinary draws + a 16-byte buffer copy — the copy (or a draw consuming a
+compute-written buffer) with the post-compute state left behind. The
+state-fixup cmdlist submitted alongside is also a candidate; per-command
+fence-wait would separate them (next).
+
+Texture views (step 2): three `glTextureView` calls precede the compute
+batch (`target=0xDE1` = TEXTURE_2D; formats `0x8234`/`0x881A`/`0x822F`),
+**zero sampler-view mismatches** (view format/target always agreed with
+the resource at creation). Creation-mismatch is cleared; a bind-time
+view effect under the 4.3 override is not.
+
+Minimal-test fault (corrections 3 + triangle variant): faulthandler pins
+the AV **inside the `glFlush()` call itself** (stdout was not lying).
+With a VAO fixed in (first attempt hit `0x502` without one — test bug,
+not driver), the triangle path links clean, records one more healthy
+submit, then the process dies with **rc=87 and empty stderr** during
+attrib-pointer/draw setup — a different, earlier death than the
+no-graphics variant. No on-device C toolchain exists (no `cl.exe`;
+only the VS Installer stub), so the C-program controls (fault address
+via VEH, 30-line debug-layer control) must be built in CI or deferred.
