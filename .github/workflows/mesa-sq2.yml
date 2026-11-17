@@ -42,7 +42,7 @@ jobs:
           if (-not $p) { $p = 'none' }
           Write-Host "patches=$p"
           if ($p -eq 'probe' -or $p -eq 'force' -or $p -eq 'both' -or $p -eq 'instrument') { $files += 'custom-driver/mesa_sq2_gate_probe.patch' }
-          if ($p -eq 'instrument') { $files += 'custom-driver/mesa_sq2_instrument.patch'; $files += 'custom-driver/mesa_sq2_bisect.patch'; $files += 'custom-driver/mesa_sq2_cmdtrace.patch'; $files += 'custom-driver/mesa_sq2_split.patch' }
+          if ($p -eq 'instrument') { $files += 'custom-driver/mesa_sq2_instrument.patch'; $files += 'custom-driver/mesa_sq2_bisect.patch'; $files += 'custom-driver/mesa_sq2_cmdtrace.patch'; $files += 'custom-driver/mesa_sq2_split.patch'; $files += 'custom-driver/mesa_sq2_copy_adapter.patch' }
           foreach ($f in $files) {
             $dst = "C:\m\" + [IO.Path]::GetFileName($f)
             Copy-Item $f $dst

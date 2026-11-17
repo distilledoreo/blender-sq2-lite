@@ -1,0 +1,155 @@
+diff --git a/src/gallium/drivers/d3d12/d3d12_dxcore_screen.cpp b/src/gallium/drivers/d3d12/d3d12_dxcore_screen.cpp
+index 7bff5b8..af157a3 100644
+--- a/src/gallium/drivers/d3d12/d3d12_dxcore_screen.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_dxcore_screen.cpp
+@@ -72,6 +72,61 @@ choose_dxcore_adapter(IDXCoreAdapterFactory *factory, LUID *adapter_luid)
+    IDXCoreAdapterList *list = nullptr;
+    if (SUCCEEDED(factory->CreateAdapterList(1, &DXCORE_ADAPTER_ATTRIBUTE_D3D12_GRAPHICS, &list))) {
+ 
++   const char *sq2_adapter2 = os_get_option("D3D12_SQ2_ADAPTER");
++   if (sq2_adapter2 && sq2_adapter2[0]) {
++      for (unsigned sq2_i = 0; sq2_i < list->GetAdapterCount(); ++sq2_i) {
++         IDXCoreAdapter *sq2_a = nullptr;
++         if (!SUCCEEDED(list->GetAdapter(sq2_i, &sq2_a)))
++            continue;
++         size_t sq2_sz = 0;
++         if (!SUCCEEDED(sq2_a->GetPropertySize(DXCoreAdapterProperty::DriverDescription, &sq2_sz))) {
++            sq2_a->Release();
++            continue;
++         }
++         char *sq2_d = (char*)malloc(sq2_sz);
++         if (!sq2_d) {
++            sq2_a->Release();
++            continue;
++         }
++         if (!SUCCEEDED(sq2_a->GetProperty(DXCoreAdapterProperty::DriverDescription, sq2_sz, sq2_d))) {
++            free(sq2_d);
++            sq2_a->Release();
++            continue;
++         }
++         fprintf(stderr, "D3D12 SQ2: dxcore adapter[%u] %s (experimental)\n", sq2_i, sq2_d);
++         bool sq2_m = false;
++         {
++            size_t sq2_h = strlen(sq2_d), sq2_n = strlen(sq2_adapter2);
++            if (sq2_n > 0 && sq2_n <= sq2_h) {
++               for (size_t sq2_p = 0; sq2_p + sq2_n <= sq2_h; ++sq2_p) {
++                  size_t sq2_k = 0;
++                  for (; sq2_k < sq2_n; ++sq2_k) {
++                     char sq2_c1 = sq2_d[sq2_p + sq2_k];
++                     char sq2_c2 = sq2_adapter2[sq2_k];
++                     if (sq2_c1 >= 'A' && sq2_c1 <= 'Z')
++                        sq2_c1 += (char)32;
++                     if (sq2_c2 >= 'A' && sq2_c2 <= 'Z')
++                        sq2_c2 += (char)32;
++                     if (sq2_c1 != sq2_c2)
++                        break;
++                  }
++                  if (sq2_k == sq2_n) {
++                     sq2_m = true;
++                     break;
++                  }
++               }
++            }
++         }
++         if (sq2_m) {
++            fprintf(stderr, "D3D12 SQ2: dxcore adapter selected %s (experimental)\n", sq2_d);
++            free(sq2_d);
++            return sq2_a;
++         }
++         free(sq2_d);
++         sq2_a->Release();
++      }
++      fprintf(stderr, "D3D12 SQ2: dxcore adapter substring not found (%s) (experimental)\n", sq2_adapter2);
++   }
+ #ifndef _WIN32
+       // Pick the user selected adapter if any
+       const char *adapter_name = os_get_option("MESA_D3D12_DEFAULT_ADAPTER_NAME");
+diff --git a/src/gallium/drivers/d3d12/d3d12_dxgi_screen.cpp b/src/gallium/drivers/d3d12/d3d12_dxgi_screen.cpp
+index 405db53..dbb77ac 100644
+--- a/src/gallium/drivers/d3d12/d3d12_dxgi_screen.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_dxgi_screen.cpp
+@@ -89,6 +89,55 @@ choose_dxgi_adapter(IDXGIFactory4 *factory, LUID *adapter)
+       return NULL;
+    }
+ 
++   const char *sq2_adapter = os_get_option("D3D12_SQ2_ADAPTER");
++   if (sq2_adapter && sq2_adapter[0]) {
++      for (UINT sq2_i = 0; ; ++sq2_i) {
++         IDXGIAdapter1 *sq2_a1 = nullptr;
++         if (FAILED(factory->EnumAdapters1(sq2_i, &sq2_a1)))
++            break;
++         DXGI_ADAPTER_DESC1 sq2_desc = {};
++         if (SUCCEEDED(sq2_a1->GetDesc1(&sq2_desc))) {
++            char sq2_n[256];
++            snprintf(sq2_n, sizeof(sq2_n), "%S", sq2_desc.Description);
++            fprintf(stderr, "D3D12 SQ2: adapter[%u] %s (experimental)\n", sq2_i, sq2_n);
++            bool sq2_match = false;
++            {
++               size_t sq2_h = strlen(sq2_n), sq2_nd = strlen(sq2_adapter);
++               if (sq2_nd > 0 && sq2_nd <= sq2_h) {
++                  for (size_t sq2_p = 0; sq2_p + sq2_nd <= sq2_h; ++sq2_p) {
++                     size_t sq2_k = 0;
++                     for (; sq2_k < sq2_nd; ++sq2_k) {
++                        char sq2_c1 = sq2_n[sq2_p + sq2_k];
++                        char sq2_c2 = sq2_adapter[sq2_k];
++                        if (sq2_c1 >= 'A' && sq2_c1 <= 'Z')
++                           sq2_c1 += (char)32;
++                        if (sq2_c2 >= 'A' && sq2_c2 <= 'Z')
++                           sq2_c2 += (char)32;
++                        if (sq2_c1 != sq2_c2)
++                           break;
++                     }
++                     if (sq2_k == sq2_nd) {
++                        sq2_match = true;
++                        break;
++                     }
++                  }
++               }
++            }
++            if (sq2_match) {
++               IDXGIAdapter3 *sq2_r = nullptr;
++               HRESULT sq2_hr = sq2_a1->QueryInterface(&sq2_r);
++               sq2_a1->Release();
++               if (SUCCEEDED(sq2_hr)) {
++                  fprintf(stderr, "D3D12 SQ2: adapter selected %s (experimental)\n", sq2_n);
++                  return sq2_r;
++               }
++               break;
++            }
++         }
++         sq2_a1->Release();
++      }
++      fprintf(stderr, "D3D12 SQ2: adapter substring not found (%s) (experimental)\n", sq2_adapter);
++   }
+    // The first adapter is the default
+    IDXGIAdapter1 *adapter1;
+    if (SUCCEEDED(factory->EnumAdapters1(0, &adapter1))) {
+diff --git a/src/gallium/drivers/d3d12/d3d12_resource.cpp b/src/gallium/drivers/d3d12/d3d12_resource.cpp
+index 458f5cf..3908973 100644
+--- a/src/gallium/drivers/d3d12/d3d12_resource.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_resource.cpp
+@@ -1482,6 +1482,24 @@ transfer_buf_to_buf(struct d3d12_context *ctx,
+    src_offset += src_offset_suballoc;
+    dst_offset += dst_offset_suballoc;
+ 
++   if (sq2_opt_control() || sq2_split_after_compute) {
++      D3D12_HEAP_PROPERTIES sq2_shp = {};
++      D3D12_HEAP_FLAGS sq2_shf = D3D12_HEAP_FLAG_NONE;
++      D3D12_HEAP_PROPERTIES sq2_dhp = {};
++      D3D12_HEAP_FLAGS sq2_dhf = D3D12_HEAP_FLAG_NONE;
++      if (src_d3d12)
++         src_d3d12->GetHeapProperties(&sq2_shp, &sq2_shf);
++      if (dst_d3d12)
++         dst_d3d12->GetHeapProperties(&sq2_dhp, &sq2_dhf);
++      fprintf(stderr, "D3D12 SQ2: copyinfo submit=%llu width=%llu src_pipe=%p dst_pipe=%p src=%p dst=%p same=%d src_w=%u dst_w=%u src_heap=%d dst_heap=%d src_off=%llu dst_off=%llu src_sub=%llu dst_sub=%llu (experimental)
++",
++              (unsigned long long)d3d12_current_batch(ctx)->submit_id, (unsigned long long)width,
++              (void*)src, (void*)dst, (void*)src_d3d12, (void*)dst_d3d12, (int)(src_d3d12 == dst_d3d12),
++              (unsigned)src->base.b.width0, (unsigned)dst->base.b.width0,
++              (int)sq2_shp.Type, (int)sq2_dhp.Type,
++              (unsigned long long)src_offset, (unsigned long long)dst_offset,
++              (unsigned long long)src_offset_suballoc, (unsigned long long)dst_offset_suballoc);
++   }
+    // Same-resource copies not supported, since the resource would need to be in both states
+    assert(src_d3d12 != dst_d3d12);
+    d3d12_transition_resource_state(ctx, src, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_TRANSITION_FLAG_INVALIDATE_BINDINGS);
