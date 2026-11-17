@@ -265,13 +265,30 @@ confirms it**. First failing operation, exactly attributed. Blender-side
 it lands right after the `draw_command_generate ComputeShader` compile
 warning, before the OOM cascade. What that submit contains (graphics
 root-sig / heap / PSO restore after compute) is the next trace.
-- **Debug-hr prints: init dies before them.** With
-`D3D12_DEBUG=debuglayer`, context creation fails with **zero SQ2 lines**
-— not even the new factory/`D3D12GetDebugInterface`/flag prints — so
-`get_debug_interface` is never reached; `init_screen` dies before it.
-The Graphics Tools install (`DISM ... Tools.Graphics.DirectX...`) still
-needs an elevated prompt (user action). PDBs now ship in the CI artifact
-for a future symbolized stack.
+- **Graphics Tools INSTALLED; debug layer still unusable — root-caused
+to device creation, both doors measured shut** (build `instrument` run
+43982549115, H5 CreateDevice prints):
+  - `DISM /Online /Add-Capability ...Tools.Graphics.DirectX...` completed
+(elevated, two attempts — first timed out at ~38%, second finished;
+`D3D12SDKLayers.dll` now in System32).
+  - Factory + debug: `debug via factory hr=0x0` (interface obtained!),
+`debuglayer flag=1`, then `factory CreateDevice GENERIC hr=0x80070057`
+(E_INVALIDARG) and `11_0 hr=0x80070057`, `dev=NULL` — the factory
+rejects NULL-adapter creation with the layer on.
+  - Singleton + debug (`D3D12_DEBUG="debuglayer,singleton"`):
+`D3D12GetDebugInterface hr=0x0`, `factory=NULL`, still NO_CTX (else-branch
+uninstrumented). Raw re-measurement (`d3d12_fl_probe.py`, this turn):
+`D3D12CreateDevice(NULL)` → `0x80004002` (E_NOINTERFACE) at
+12_1/12_0/11_1/11_0 (12_2 → `0x887A0004` unsupported, as expected).
+  - So the layer is installed and reachable but unusable through either
+of Mesa's device paths without explicit-adapter surgery. Bisect (submit
+...666) stands in as the attribution, as authorized.
+- **Symbolized stack: PDBs ship in the CI artifact** (`*.pdb` uploaded
+since run 43976031237) but no faulting function+line yet — the Blender
+crash.txt trace is unchanged (teardown `get_proc_address` AV), and the
+minimal-test record-path AV yields no address via ctypes. Next: finer
+record-path prints (between PSO-created and recording-dispatch) or
+DbgHelp `SymFromAddr` against the artifact PDB.
 
 ### Debug layer — blocked (original note)
 
