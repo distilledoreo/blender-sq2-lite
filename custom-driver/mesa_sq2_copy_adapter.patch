@@ -2,12 +2,11 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_dxcore_screen.cpp b/src/gallium/dri
 index 7bff5b8..2dc3a0d 100644
 --- a/src/gallium/drivers/d3d12/d3d12_dxcore_screen.cpp
 +++ b/src/gallium/drivers/d3d12/d3d12_dxcore_screen.cpp
-@@ -72,6 +72,62 @@ choose_dxcore_adapter(IDXCoreAdapterFactory *factory, LUID *adapter_luid)
+@@ -72,6 +72,61 @@ choose_dxcore_adapter(IDXCoreAdapterFactory *factory, LUID *adapter_luid)
     IDXCoreAdapterList *list = nullptr;
     if (SUCCEEDED(factory->CreateAdapterList(1, &DXCORE_ADAPTER_ATTRIBUTE_D3D12_GRAPHICS, &list))) {
  
-+#ifndef _WIN32
-+      // Pick the user selected adapter if any   const char *sq2_adapter2 = os_get_option("D3D12_SQ2_ADAPTER");
++   const char *sq2_adapter2 = os_get_option("D3D12_SQ2_ADAPTER");
 +   if (sq2_adapter2 && sq2_adapter2[0]) {
 +      for (unsigned sq2_i = 0; sq2_i < list->GetAdapterCount(); ++sq2_i) {
 +         IDXCoreAdapter *sq2_a = nullptr;
@@ -69,12 +68,11 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_dxgi_screen.cpp b/src/gallium/drive
 index 405db53..d874cbf 100644
 --- a/src/gallium/drivers/d3d12/d3d12_dxgi_screen.cpp
 +++ b/src/gallium/drivers/d3d12/d3d12_dxgi_screen.cpp
-@@ -89,6 +89,56 @@ choose_dxgi_adapter(IDXGIFactory4 *factory, LUID *adapter)
+@@ -89,6 +89,55 @@ choose_dxgi_adapter(IDXGIFactory4 *factory, LUID *adapter)
        return NULL;
     }
  
-+   // The first adapter is the default
-+   IDXGIAdapter1 *adapter1;   const char *sq2_adapter = os_get_option("D3D12_SQ2_ADAPTER");
++   const char *sq2_adapter = os_get_option("D3D12_SQ2_ADAPTER");
 +   if (sq2_adapter && sq2_adapter[0]) {
 +      for (UINT sq2_i = 0; ; ++sq2_i) {
 +         IDXGIAdapter1 *sq2_a1 = nullptr;
@@ -130,13 +128,10 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_resource.cpp b/src/gallium/drivers/
 index 458f5cf..045596d 100644
 --- a/src/gallium/drivers/d3d12/d3d12_resource.cpp
 +++ b/src/gallium/drivers/d3d12/d3d12_resource.cpp
-@@ -1482,6 +1482,26 @@ transfer_buf_to_buf(struct d3d12_context *ctx,
+@@ -1482,6 +1482,23 @@ transfer_buf_to_buf(struct d3d12_context *ctx,
     src_offset += src_offset_suballoc;
     dst_offset += dst_offset_suballoc;
  
-+   // Same-resource copies not supported   src_offset += src_offset_suballoc;
-+   dst_offset += dst_offset_suballoc;
-+
 +   if (sq2_opt_control() || sq2_split_after_compute) {
 +      D3D12_HEAP_PROPERTIES sq2_shp = {};
 +      D3D12_HEAP_FLAGS sq2_shf = D3D12_HEAP_FLAG_NONE;
