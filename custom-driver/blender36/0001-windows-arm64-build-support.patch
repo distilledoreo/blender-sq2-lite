@@ -58,3 +58,17 @@
  endif()
  
  if(WITH_BOOST)
+@@ -1033,7 +1053,12 @@
+ 
+ if(WITH_GMP)
+   set(GMP_INCLUDE_DIRS ${LIBDIR}/gmp/include)
+-  set(GMP_LIBRARIES ${LIBDIR}/gmp/lib/libgmp-10.lib optimized ${LIBDIR}/gmp/lib/libgmpxx.lib debug ${LIBDIR}/gmp/lib/libgmpxx_d.lib)
++  if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
++    # The Windows arm64 dependency set ships the import library as gmp.dll.lib.
++    set(GMP_LIBRARIES ${LIBDIR}/gmp/lib/gmp.dll.lib optimized ${LIBDIR}/gmp/lib/libgmpxx.lib debug ${LIBDIR}/gmp/lib/libgmpxx_d.lib)
++  else()
++    set(GMP_LIBRARIES ${LIBDIR}/gmp/lib/libgmp-10.lib optimized ${LIBDIR}/gmp/lib/libgmpxx.lib debug ${LIBDIR}/gmp/lib/libgmpxx_d.lib)
++  endif()
+   set(GMP_ROOT_DIR ${LIBDIR}/gmp)
+   set(GMP_FOUND ON)
+ endif()
