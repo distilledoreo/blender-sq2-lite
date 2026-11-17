@@ -431,3 +431,10 @@ was removed in current DirectX-Headers; v1.619) — this was the
 43999498086 compile break. Also fixed: split.patch had CRLF in the
 worktree (other patches are LF); pure-LF full chain now applies rc=0
 in an isolated autocrlf=false harness.
+
+Split v2 compile fix (build 44003919674 failed only on new code):
+pipe_vertex_buffer in 26.3 uses a buffer union (resource/user) with
+no stride member — VB identity now reads buffer.resource (or user
+pointer) and stride from the bound D3D12_VERTEX_BUFFER_VIEW; the
+viewbind if was missing a closing paren. DRED rename from the
+previous message stands.
