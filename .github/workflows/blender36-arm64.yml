@@ -72,10 +72,14 @@ jobs:
           & "$dst\bin\python.exe" -c "import sys; print('python', sys.version, sys.platform)"
           Write-Host "python310.lib present: $(Test-Path "$dst\libs\python310.lib")"
 
-      - name: Apply Windows-ARM64 build-system patch
+      - name: Apply Windows-ARM64 patches
         shell: pwsh
         run: |
-          git -C C:\b apply --verbose "$env:GITHUB_WORKSPACE\custom-driver\blender36\0001-windows-arm64-build-support.patch"
+          Get-ChildItem "$env:GITHUB_WORKSPACE\custom-driver\blender36\*.patch" | Sort-Object Name | ForEach-Object {
+            Write-Host "applying $($_.Name)"
+            git -C C:\b apply --verbose $_.FullName
+            if ($LASTEXITCODE -ne 0) { throw "patch failed: $($_.Name)" }
+          }
           Select-String -Path C:\b\build_files\cmake\platform\platform_win32.cmake -Pattern "windows_arm64|MACHINE:ARM64|Zc:preprocessor" | ForEach-Object { $_.Line.Trim() }
 
       - name: Configure (lite, Ninja + arm64 MSVC)
