@@ -1,0 +1,202 @@
+diff --git a/src/gallium/drivers/d3d12/d3d12_context.h b/src/gallium/drivers/d3d12/d3d12_context.h
+--- a/src/gallium/drivers/d3d12/d3d12_context.h
++++ b/src/gallium/drivers/d3d12/d3d12_context.h
+@@ -308,7 +308,9 @@ d3d12_current_batch(struct d3d12_context *ctx)
+ {
+    assert(ctx->current_batch_idx < ARRAY_SIZE(ctx->batches));
+    return ctx->batches + ctx->current_batch_idx;
+ }
++
++extern bool sq2_split_after_compute;
+ 
+ #define d3d12_foreach_submitted_batch(ctx, batch) \
+    unsigned oldest = (ctx->current_batch_idx + 1) % ARRAY_SIZE(ctx->batches); \
+diff --git a/src/gallium/drivers/d3d12/d3d12_batch.cpp b/src/gallium/drivers/d3d12/d3d12_batch.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_batch.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_batch.cpp
+@@ -299,6 +299,8 @@ d3d12_start_batch(struct d3d12_context *ctx, struct d3d12_batch *batch)
+    batch->submit_id = ++ctx->submit_id;
+ }
+ 
++bool sq2_split_after_compute = false;
++
+ void
+ d3d12_end_batch(struct d3d12_context *ctx, struct d3d12_batch *batch)
+ {
+diff --git a/src/gallium/drivers/d3d12/d3d12_batch.cpp b/src/gallium/drivers/d3d12/d3d12_batch.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_batch.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_batch.cpp
+@@ -323,6 +323,8 @@ d3d12_end_batch(struct d3d12_context *ctx, struct d3d12_batch *batch)
+ 
+    bool has_state_fixup = d3d12_context_state_resolve_submission(ctx, batch);
+ 
++   if (sq2_split_after_compute)
++      fprintf(stderr, "D3D12 SQ2: submit %llu fixup=%d (experimental)\n", (unsigned long long)batch->submit_id, (int)has_state_fixup);
+    ID3D12CommandList *cmdlists[] = { ctx->state_fixup_cmdlist, ctx->cmdlist };
+    ID3D12CommandList **to_execute = cmdlists;
+    UINT count_to_execute = ARRAY_SIZE(cmdlists);
+diff --git a/src/gallium/drivers/d3d12/d3d12_draw.cpp b/src/gallium/drivers/d3d12/d3d12_draw.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_draw.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_draw.cpp
+@@ -1255,10 +1255,21 @@ d3d12_draw_vbo(struct pipe_context *pctx,
+    for (int i = 0; i < ctx->fb.nr_cbufs; ++i) {
+       if (ctx->fb_cbufs[i]) {
+          struct d3d12_surface *surface = ctx->fb_cbufs[i];
+          d3d12_surface_update_post_draw(pctx, surface, conversion_modes[i]);
+       }
+    }
+ 
++   {
++      bool sq2_fan = !indirect && ((dinfo->mode == 6 && draws[0].count == 4 && !dinfo->index_size) || (dinfo->mode == 4 && draws[0].count == 6 && dinfo->index_size));
++      if (sq2_fan) {
++         struct pipe_vertex_buffer *sq2_vb0 = ctx->num_vbs > 0 ? &ctx->vbs[0] : NULL;
++         fprintf(stderr, "D3D12 SQ2: fandraw submit=%llu mode=%d count=%u idx=%d pso=%p ib=%p nvbs=%u vb0=%p stride=%u (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id, (int)dinfo->mode, draws[0].count, dinfo->index_size > 0, (void*)ctx->current_gfx_pso, (void*)index_buffer, ctx->num_vbs, sq2_vb0 ? (void*)sq2_vb0->buffer : NULL, sq2_vb0 ? sq2_vb0->stride : 0);
++      }
++      if (sq2_split_after_compute) {
++         fprintf(stderr, "D3D12 SQ2: split after draw submit=%llu (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id);
++         d3d12_flush_cmdlist_and_wait(ctx);
++      }
++   }
+    pipe_resource_reference(&patched_indirect.buffer, NULL);
+ }
+ 
+diff --git a/src/gallium/drivers/d3d12/d3d12_resource.cpp b/src/gallium/drivers/d3d12/d3d12_resource.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_resource.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_resource.cpp
+@@ -1296,5 +1296,10 @@ copy_texture_region(struct d3d12_context *ctx,
+    fprintf(stderr, "D3D12 SQ2: copytex submit=%llu (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id);
+    ctx->has_commands = true;
++
++   if (sq2_split_after_compute) {
++      fprintf(stderr, "D3D12 SQ2: split after copytex submit=%llu (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id);
++      d3d12_flush_cmdlist_and_wait(ctx);
++   }
+ }
+ 
+ static void
+diff --git a/src/gallium/drivers/d3d12/d3d12_resource.cpp b/src/gallium/drivers/d3d12/d3d12_resource.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_resource.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_resource.cpp
+@@ -1493,5 +1493,13 @@ transfer_buf_to_buf(struct d3d12_context *ctx,
+    fprintf(stderr, "D3D12 SQ2: copybuf submit=%llu width=%llu (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id, (unsigned long long)width);
+    ctx->has_commands = true;
++
++   if (width == 16 || sq2_split_after_compute) {
++      fprintf(stderr, "D3D12 SQ2: copybuf16 submit=%llu width=%llu dst=%p src=%p (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id, (unsigned long long)width, (void*)dst, (void*)src);
++   }
++   if (sq2_split_after_compute) {
++      fprintf(stderr, "D3D12 SQ2: split after copybuf submit=%llu (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id);
++      d3d12_flush_cmdlist_and_wait(ctx);
++   }
+ }
+ 
+ static void
+diff --git a/src/gallium/drivers/d3d12/d3d12_resource_state.cpp b/src/gallium/drivers/d3d12/d3d12_resource_state.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_resource_state.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_resource_state.cpp
+@@ -505,4 +505,8 @@ d3d12_transition_resource_state(struct d3d12_context *ctx,
+    d3d12_context_state_table_entry *state_entry = find_or_create_state_entry(ctx, res->bo);
++   if (sq2_split_after_compute) {
++      D3D12_RESOURCE_STATES sq2_before = (state_entry->batch_end.homogenous && state_entry->batch_end.num_subresources > 0) ? state_entry->batch_end.subresource_states[0].state : (D3D12_RESOURCE_STATES)0;
++      fprintf(stderr, "D3D12 SQ2: transition res=%p before=0x%x after=0x%x flags=%d (experimental)\n", (void*)res, (unsigned)sq2_before, (unsigned)state, (int)flags);
++   }
+    bool pending_memory_barrier = (flags & D3D12_TRANSITION_FLAG_PENDING_MEMORY_BARRIER) != 0;
+    if (flags & D3D12_TRANSITION_FLAG_ACCUMULATE_STATE) {
+       set_desired_resource_state(&state_entry->desired, state, pending_memory_barrier);
+diff --git a/src/gallium/drivers/d3d12/d3d12_context_graphics.cpp b/src/gallium/drivers/d3d12/d3d12_context_graphics.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_context_graphics.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_context_graphics.cpp
+@@ -989,6 +989,8 @@ d3d12_set_sampler_views(struct pipe_context *pctx,
+       pipe_sampler_view_reference(&old_view, views[i]);
+ 
+       if (views[i]) {
++         if (views[i]->texture && (views[i]->format != views[i]->texture->format || views[i]->target != views[i]->texture->target))
++            fprintf(stderr, "D3D12 SQ2: viewbind fmt=%d->%d tgt=%d->%d (experimental)\n", (int)views[i]->texture->format, (int)views[i]->format, (int)views[i]->texture->target, (int)views[i]->target);
+          dxil_wrap_sampler_state &wss = ctx->tex_wrap_states[shader_type][start_slot + i];
+          dxil_texture_swizzle_state &swizzle_state = ctx->tex_swizzle_state[shader_type][i];
+          if (util_format_is_pure_integer(views[i]->format)) {
+diff --git a/src/gallium/drivers/d3d12/d3d12_draw.cpp b/src/gallium/drivers/d3d12/d3d12_draw.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_draw.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_draw.cpp
+@@ -1395,9 +1395,31 @@ d3d12_launch_grid(struct pipe_context *pctx, const struct pipe_grid_info *info
+    {
+       static unsigned sq2_dispatch_count = 0;
+       fprintf(stderr, "D3D12 SQ2: compute dispatch #%u grid=%ux%ux%u indirect=%d removed=0x%lx (experimental)\n",
+               ++sq2_dispatch_count, info->grid[0], info->grid[1], info->grid[2], indirect != nullptr,
+               (long)d3d12_screen(ctx->base.screen)->dev->GetDeviceRemovedReason());
+    }
++
++   sq2_split_after_compute = true;
++   for (unsigned sq2_bi = 0; sq2_bi < ctx->num_ssbo_views[MESA_SHADER_COMPUTE]; ++sq2_bi) {
++      struct pipe_resource *sq2_bres = ctx->ssbo_views[MESA_SHADER_COMPUTE][sq2_bi].buffer;
++      if (sq2_bres)
++         fprintf(stderr, "D3D12 SQ2: compute ssbo[%u] res=%p size=%u (experimental)\n", sq2_bi, (void*)sq2_bres, (unsigned)sq2_bres->width0);
++   }
++   if (ctx->num_ssbo_views[MESA_SHADER_COMPUTE] > 0 && ctx->ssbo_views[MESA_SHADER_COMPUTE][0].buffer) {
++      struct pipe_resource *sq2_rb = ctx->ssbo_views[MESA_SHADER_COMPUTE][0].buffer;
++      unsigned sq2_n = sq2_rb->width0 < 16 ? (unsigned)sq2_rb->width0 : 16;
++      struct pipe_box sq2_box;
++      sq2_box.x = 0; sq2_box.y = 0; sq2_box.z = 0; sq2_box.width = (int)sq2_n; sq2_box.height = 1; sq2_box.depth = 1;
++      struct pipe_transfer *sq2_t = NULL;
++      pctx->buffer_map(pctx, sq2_rb, 0, PIPE_MAP_READ, &sq2_box, &sq2_t);
++      if (sq2_t && ((struct d3d12_transfer *)sq2_t)->data) {
++         uint32_t *sq2_u = (uint32_t *)((struct d3d12_transfer *)sq2_t)->data;
++         fprintf(stderr, "D3D12 SQ2: compute readback %u %u %u %u (experimental)\n", sq2_u[0], sq2_u[1], sq2_u[2], sq2_u[3]);
++      } else
++         fprintf(stderr, "D3D12 SQ2: compute readback MAP_FAILED (experimental)\n");
++      if (sq2_t)
++         pctx->buffer_unmap(pctx, sq2_t);
++   }
+ 
+    ctx->state_dirty &= D3D12_DIRTY_GFX_MASK;
+    ctx->cmdlist_dirty &= D3D12_DIRTY_GFX_MASK;
+diff --git a/src/mesa/main/textureview.c b/src/mesa/main/textureview.c
+--- a/src/mesa/main/textureview.c
++++ b/src/mesa/main/textureview.c
+@@ -854,5 +854,7 @@ _mesa_TextureView(GLuint texture, GLenum target, GLuint origtexture,
+   texture_view(ctx, origTexObj, texObj, target, internalformat, minlevel,
+                numlevels, minlayer, numlayers, false);
++
++   fprintf(stderr, "D3D12 SQ2: glTextureView done err=%d (experimental)\n", ctx->ErrorValue);
+ }
+ 
+ void
+diff --git a/src/gallium/drivers/d3d12/d3d12_batch.cpp b/src/gallium/drivers/d3d12/d3d12_batch.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_batch.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_batch.cpp
+@@ -355,9 +355,35 @@ d3d12_end_batch(struct d3d12_context *ctx, struct d3d12_batch *batch)
+                   delete[] sq2_buf;
+                }
+             }
+             sq2_iq->Release();
+          }
+       }
++      if (sq2_exec_removed != S_OK) {
++         ID3D12DeviceRemovedExtendedData *sq2_dred = nullptr;
++         HRESULT sq2_dred_hr = screen->dev->QueryInterface(IID_PPV_ARGS(&sq2_dred));
++         fprintf(stderr, "D3D12 SQ2: dred QI hr=0x%lx (experimental)\n", (long)sq2_dred_hr);
++         if (SUCCEEDED(sq2_dred_hr) && sq2_dred) {
++            D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT sq2_bcout = {};
++            HRESULT sq2_bc_hr = sq2_dred->GetAutoBreadcrumbsOutput(&sq2_bcout);
++            fprintf(stderr, "D3D12 SQ2: dred breadcrumbs hr=0x%lx (experimental)\n", (long)sq2_bc_hr);
++            if (SUCCEEDED(sq2_bc_hr)) {
++               const D3D12_DRED_AUTO_BREADCRUMB_NODE *sq2_node = sq2_bcout.pHeadAutoBreadcrumbNode;
++               while (sq2_node) {
++                  uint32_t sq2_last = (sq2_node->BreadcrumbCount && sq2_node->pLastBreadcrumbValue) ? *sq2_node->pLastBreadcrumbValue : 0;
++                  fprintf(stderr, "D3D12 SQ2: dred node %s count=%u last=%u (experimental)\n", sq2_node->pCommandListDebugNameA ? sq2_node->pCommandListDebugNameA : "?", sq2_node->BreadcrumbCount, sq2_last);
++                  for (uint32_t sq2_k = 0; sq2_k < sq2_node->BreadcrumbCount && sq2_k < 8; ++sq2_k)
++                     fprintf(stderr, "D3D12 SQ2: dred op[%u]=%d (experimental)\n", sq2_k, (int)sq2_node->pCommandHistory[sq2_k]);
++                  sq2_node = sq2_node->pNext;
++               }
++            }
++            D3D12_DRED_PAGE_FAULT_OUTPUT sq2_pfout = {};
++            HRESULT sq2_pf_hr = sq2_dred->GetPageFaultAllocationOutput(&sq2_pfout);
++            fprintf(stderr, "D3D12 SQ2: dred pagefault hr=0x%lx (experimental)\n", (long)sq2_pf_hr);
++            if (SUCCEEDED(sq2_pf_hr))
++               fprintf(stderr, "D3D12 SQ2: dred faultva=0x%llx (experimental)\n", (unsigned long long)sq2_pfout.PageFaultVA);
++            sq2_dred->Release();
++         }
++      }
+    }
+    else
+       batch->has_errors = true;

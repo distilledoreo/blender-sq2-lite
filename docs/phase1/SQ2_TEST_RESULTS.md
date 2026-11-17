@@ -392,3 +392,17 @@ attrib-pointer/draw setup — a different, earlier death than the
 no-graphics variant. No on-device C toolchain exists (no `cl.exe`;
 only the VS Installer stub), so the C-program controls (fault address
 via VEH, 30-line debug-layer control) must be built in CI or deferred.
+
+Step-1 read (trace check, no build): the failing-submit pattern DOES
+occur pre-compute and executes clean. The fan pair (`mode=6 count=4`
+FAN followed directly by `mode=4 count=6 indexed=1` TRIANGLES) always
+co-occurs (22/22 draws — one `u_primconvert` logical draw, confirmed).
+`copybuf width=16` occurs 20x pre-compute, all healthy. Mode 4 is
+TRIANGLES (not strip); earlier notes saying strip are corrected. The
+commands are valid; the difference is the state of a resource they
+touch after compute. Consolidated split build (`mesa_sq2_split.patch`,
+wired into the workflow for `patches=instrument`) now instruments:
+per-command split flush+fence from the compute batch onward,
+transition before/after prints, compute SSBO list + 16-byte readback,
+TextureView done-error + bind-time view-reinterpret prints, and the
+DRED breadcrumb/pagefault reader in the nonzero-removal path.
