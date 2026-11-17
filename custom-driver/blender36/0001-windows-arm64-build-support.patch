@@ -67,7 +67,21 @@
  endif()
  
  if(WITH_BOOST)
-@@ -1033,7 +1055,12 @@
+@@ -823,7 +845,12 @@
+   set(LIBSNDFILE ${LIBDIR}/sndfile)
+   set(LIBSNDFILE_INCLUDE_DIRS ${LIBSNDFILE}/include)
+   set(LIBSNDFILE_LIBPATH ${LIBSNDFILE}/lib) # TODO, deprecate
+-  set(LIBSNDFILE_LIBRARIES ${LIBSNDFILE_LIBPATH}/libsndfile-1.lib)
++  if(EXISTS ${LIBSNDFILE_LIBPATH}/libsndfile-1.lib)
++    set(LIBSNDFILE_LIBRARIES ${LIBSNDFILE_LIBPATH}/libsndfile-1.lib)
++  else()
++    # Windows arm64 dependency set ships the import library without the -1 suffix.
++    set(LIBSNDFILE_LIBRARIES ${LIBSNDFILE_LIBPATH}/sndfile.lib)
++  endif()
+ endif()
+ 
+ if(WITH_CYCLES AND WITH_CYCLES_OSL)
+@@ -1033,7 +1060,12 @@
  
  if(WITH_GMP)
    set(GMP_INCLUDE_DIRS ${LIBDIR}/gmp/include)
