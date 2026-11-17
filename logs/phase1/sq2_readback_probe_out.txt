@@ -1,0 +1,107 @@
+D3D12 SQ2: debuglayer flag=0 factory=000001EE705B3E68 (experimental)
+D3D12 SQ2: factory CreateDevice GENERIC hr=0x0 dev=000001EE7049F8F0 (experimental)
+D3D12 SQ2: highest shader model 0x61, max feature level 0xc100
+D3D12 SQ2: TypedUAVLoadAdditionalFormats=1
+D3D12 SQ2: fmt 11 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 13 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 16 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 17 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 18 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 24 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 25 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 26 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 31 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 34 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 35 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 36 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 37 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 38 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 49 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 50 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 51 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 52 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 56 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 58 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 63 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: end_batch enter (experimental)
+D3D12 SQ2: submit 8589934593 Execute removed=0x0 (experimental)
+D3D12 SQ2: flush submit=4294967297 (experimental)
+D3D12 SQ2: end_batch enter (experimental)
+D3D12 SQ2: submit 4294967297 Execute removed=0x0 (experimental)
+D3D12 SQ2: end_batch enter (experimental)
+D3D12 SQ2: submit 4294967298 Execute removed=0x0 (experimental)
+D3D12 SQ2: copybuf submit=12884901889 width=16 (experimental)
+D3D12 SQ2: flush submit=12884901889 (experimental)
+D3D12 SQ2: end_batch enter (experimental)
+D3D12 SQ2: submit 12884901889 Execute removed=0x0 (experimental)
+D3D12 SQ2: copybuf submit=12884901890 width=16 (experimental)
+D3D12 SQ2: flush submit=12884901890 (experimental)
+D3D12 SQ2: end_batch enter (experimental)
+D3D12 SQ2: submit 12884901890 Execute removed=0x0 (experimental)
+D3D12 SQ2: copybuf submit=12884901891 width=16 (experimental)
+D3D12 SQ2: copybuf submit=12884901891 width=16 (experimental)
+D3D12 SQ2: copybuf submit=12884901891 width=16 (experimental)
+D3D12 SQ2: copybuf submit=12884901891 width=16 (experimental)
+D3D12 SQ2: copybuf submit=12884901891 width=16 (experimental)
+D3D12 SQ2: copybuf submit=12884901891 width=16 (experimental)
+D3D12 SQ2: copybuf submit=12884901891 width=16 (experimental)
+D3D12 SQ2: flush submit=12884901891 (experimental)
+D3D12 SQ2: end_batch enter (experimental)
+D3D12 SQ2: submit 12884901891 Execute removed=0x0 (experimental)
+D3D12 SQ2: copybuf submit=12884901892 width=16 (experimental)
+D3D12 SQ2: flush submit=12884901892 (experimental)
+D3D12 SQ2: end_batch enter (experimental)
+D3D12 SQ2: submit 12884901892 Execute removed=0x0 (experimental)
+core 4.3 ctx: 2
+VENDOR = Microsoft Corporation
+RENDERER = D3D12 (Qualcomm(R) Adreno(TM) 680 GPU)
+VERSION = 4.3 (Core Profile) Mesa 26.3.0 (git-0a6fa60abb)
+GLSL = 4.30
+  glGetError(bind ARRAY_BUFFER) = 0x0
+  glGetError(bufferdata ARRAY_BUFFER) = 0x0
+  glGetError(getbuffersubdata ARRAY_BUFFER #1) = 0x0
+  ARRAY_BUFFER read #1 match=True got=[00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f]
+  glGetError(getbuffersubdata ARRAY_BUFFER #2) = 0x0
+  ARRAY_BUFFER read #2 match=True got=[00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f]
+  glGetError(getbuffersubdata ARRAY_BUFFER #3) = 0x0
+  ARRAY_BUFFER read #3 match=True got=[00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f]
+  glGetError(buffersubdata ARRAY_BUFFER) = 0x0
+  glGetError(getbuffersubdata-after-subdata ARRAY_BUFFER) = 0x0
+  ARRAY_BUFFER read-after-write match=True what=[00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f]
+  glGetError(unmap ARRAY_BUFFER) = 0x0
+  ARRAY_BUFFER map-read match=True what=[00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f]
+  glGetError(bind UNIFORM_BUFFER) = 0x0
+  glGetError(bufferdata UNIFORM_BUFFER) = 0x0
+  glGetError(getbuffersubdata UNIFORM_BUFFER #1) = 0x0
+  UNIFORM_BUFFER read #1 match=True got=[00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f]
+  glGetError(getbuffersubdata UNIFORM_BUFFER #2) = 0x0
+  UNIFORM_BUFFER read #2 match=True got=[00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f]
+  glGetError(getbuffersubdata UNIFORM_BUFFER #3) = 0x0
+  UNIFORM_BUFFER read #3 match=True got=[00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f]
+  glGetError(buffersubdata UNIFORM_BUFFER) = 0x0
+  glGetError(getbuffersubdata-after-subdata UNIFORM_BUFFER) = 0x0
+  UNIFORM_BUFFER read-after-write match=True what=[00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f]
+  glGetError(unmap UNIFORM_BUFFER) = 0x0
+  UNIFORM_BUFFER map-read match=True what=[00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f]
+RESULT: PASS (fails=0)

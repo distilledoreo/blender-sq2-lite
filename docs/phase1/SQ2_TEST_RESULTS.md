@@ -516,3 +516,35 @@ WARP draws the same frame, layer reports no error. Qualcomm
 Adreno driver defect rejecting a legal post-compute
 CopyBufferRegion. Recommendation: stop the Windows route; no
 further Mesa builds spent here.
+
+Build-free follow-ups (no build spent):
+1. Plain buffer read-back on the Adreno, current DLLs, no
+compute, no draws (mesa-test/sq2_readback_probe.py, run with
+Blender's ARM64 python — the system python is x64 and cannot
+load the ARM64 DLLs, WinError 193). Context: 4.3 core,
+RENDERER=D3D12 (Qualcomm Adreno 680), Mesa 26.3.0
+(git-0a6fa60abb). For GL_ARRAY_BUFFER and GL_UNIFORM_BUFFER:
+glBufferData(16) then glGetBufferSubData x3, then
+BufferSubData then read, then glMapBufferRange(READ). All
+reads returned the expected bytes (00..0f), glGetError()==0
+throughout, RESULT: PASS (fails=0). Read-back is NOT broken
+on this driver: the fault is specific to the post-compute
+state (or to that staging buffer's history), not to buffer
+read-back in general. Log: sq2_readback_probe_out.txt.
+2. Driver currency. Installed: 27.20.2140.0
+(date 2024-10-29, delivered by the March 4 2025 Surface
+release). Surface Pro X update history documents a NEWER
+Adreno 680 driver: **27.20.2160.0000**, shipped in the
+November 13 2025 update (the section read covers the
+"Surface Pro X (Wi-Fi)" configuration running Windows 11
+22H2+). One revision newer exists, but it is a single
+security-driven bump with no graphics fix notes, so it is
+unlikely to change this failure; if installed at all, treat it
+as cheap to try, not as the expected fix.
+3. Mesa report prepared: docs/phase1/MESA_D3D12_SQ2_ISSUE.md
+(environment, failing submit contents, copyinfo values, the
+114 passing mirror uploads, WARP comparison, debug-layer and
+DRED unavailability, read-back probe result, and the explicit
+question about a driver-agnostic workaround). NOT FILED — no
+gitlab.freedesktop.org credentials or glab on this machine;
+needs the user's account to open the issue.
