@@ -1,0 +1,23 @@
+--- a/source/creator/CMakeLists.txt
++++ b/source/creator/CMakeLists.txt
+@@ -956,10 +956,19 @@
+       DEBUG
+     )
+   endif()
++  # The arm64 dependency set ships gmp-10.dll, the 3.6-era sets shipped
++  # libgmp-10.dll (same guard as upstream 4.2).
++  if(EXISTS ${LIBDIR}/gmp/lib/gmp-10.dll)
++    set(GMP_DLL ${LIBDIR}/gmp/lib/gmp-10.dll)
++  else()
++    set(GMP_DLL ${LIBDIR}/gmp/lib/libgmp-10.dll)
++  endif()
++
+   windows_install_shared_manifest(
+-    FILES ${LIBDIR}/gmp/lib/libgmp-10.dll
++    FILES ${GMP_DLL}
+     ALL
+   )
++  unset(GMP_DLL)
+   windows_install_shared_manifest(
+     FILES ${LIBDIR}/gmp/lib/libgmpxx.dll
+     RELEASE

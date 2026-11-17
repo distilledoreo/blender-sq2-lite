@@ -200,38 +200,26 @@ jobs:
             }
           }
 
-          # 3.6's install rules guard each dependency on the file names of its own
-          # era (e.g. OpenColorIO_2_2.dll), so some DLLs the exe imports are not
-          # installed from the 4.2 arm64 set. Ask the exe what it needs and fill
-          # in whatever install left out.
-          $deps = cmd /c "`"$env:GITHUB_WORKSPACE\custom-driver\blender36\ci_stage_arm64.bat`" C:\b"
-          $names = @($deps | ForEach-Object { if ($_ -match '^\s+(\S+\.dll)\s*$') { $Matches[1] } } | Sort-Object -Unique)
-          Write-Host "blender.exe imports $($names.Count) DLLs"
-          $bin = "C:\b\build\bin"
-          $libIndex = @{}
-          Get-ChildItem C:\b\lib\windows_arm64 -Recurse -File -Include *.dll | ForEach-Object {
-            $key = $_.Name.ToLower()
-            if (-not $libIndex.ContainsKey($key)) { $libIndex[$key] = $_.FullName }
-          }
-          $present = @{}
-          Get-ChildItem $bin -Recurse -File -Include *.dll | ForEach-Object { $present[$_.Name.ToLower()] = $true }
-          $unresolved = @()
-          foreach ($n in $names) {
-            $key = $n.ToLower()
-            if ($present.ContainsKey($key)) { continue }
-            if ($libIndex.ContainsKey($key)) {
-              Copy-Item $libIndex[$key] (Join-Path $bin $n) -Force
-              Write-Host "staged $n"
-            }
-            else {
-              $unresolved += $n
-            }
-          }
-          Write-Host "not in the dependency tree (system DLLs expected): $($unresolved -join ', ')"
+          # 3.6's install rules name dependencies the way its own 3.x dependency
+          # set did (OpenColorIO_2_2.dll, libfftw3-3.dll, ...), so against the 4.2
+          # arm64 set several imported DLLs are never installed and the exe dies
+          # with 0xC0000135. stage_runtime.py walks the import graph and copies
+          # what is missing out of the dependency tree.
+          $py = "C:\b\lib\windows_arm64\python\310\bin\python.exe"
+          if (-not (Test-Path $py)) { $py = "python" }
+          & $py "$env:GITHUB_WORKSPACE\custom-driver\blender36\stage_runtime.py" --tree "C:\b\build\bin" --lib "C:\b\lib\windows_arm64"
+          if ($LASTEXITCODE -ne 0) { throw "staging left unresolved DLL dependencies" }
 
           Get-ChildItem C:\b\build\bin | Select-Object Name, Length | Format-Table -AutoSize
-          & C:\b\build\bin\blender.exe --version
-          if ($LASTEXITCODE -ne 0) { throw "blender.exe --version failed on the ARM64 runner" }
+          # It is a console subsystem exe, but a GUI build here would not be
+          # waited for by `&`, so wait explicitly and read the exit code.
+          $verFile = "C:\b\build\bin\version.txt"
+          $proc = Start-Process -FilePath "C:\b\build\bin\blender.exe" -ArgumentList "--version" `
+            -Wait -PassThru -NoNewWindow -RedirectStandardOutput $verFile
+          Get-Content $verFile
+          if ($proc.ExitCode -ne 0) { throw "blender.exe --version exited $($proc.ExitCode)" }
+          if (-not (Select-String -Path $verFile -Pattern "Blender 3\.6\." -Quiet)) { throw "version output missing" }
+          Remove-Item $verFile -Force
 
       - name: Upload blender.exe
         if: ${{ !inputs.configure_only && always() }}
