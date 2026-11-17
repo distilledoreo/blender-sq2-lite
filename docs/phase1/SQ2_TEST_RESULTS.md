@@ -487,3 +487,32 @@ candidates are both Mesa-side: stale COMMON decay (tracker says
 COMMON, GPU still holds COPY_SOURCE from the pre-compute upload)
 or compute-batch state-table corruption. Either is a
 resource-state defect to patch, not a command defect.
+
+Build two (44025171691, green after two patch fixes: joined split
+string literal, removed duplicated anchors) adds copyinfo
+(underlying res, widths, heap types, final+suballoc offsets,
+same-resource flag) and D3D12_SQ2_ADAPTER substring select. Binary
+verified new (libgallium 16049664, copyinfo/ADAPTER markers
+present). All runs: FORCE_IMAGES=1, 4.3/430, --factory-startup.
+- Run 1 (Adreno, SPLIT+CONTROL): same failure at ...667, now
+with copyinfo: width=16 same=0 src_w=16 dst_w=256 src_heap=4
+dst_heap=4 src_off=0 dst_off=0 sub=0/0, transitions
+0x0->0x800/0x400, fixup=0, Execute 0x887a0001. The healthy
+pre-compute 16-byte upload controls print the mirror image
+(src_w=256 dst_w=16, heaps 4/4, offsets 0). Every printed
+field of the failing copy is valid; no invalid copy.
+- Run 2 (WARP via D3D12_SQ2_ADAPTER=Basic): adapter list shows
+Adreno[0]+Basic Render Driver[1], WARP selected. Identical
+frame: same map-read copy shape executes 0x0, session
+continues past dispatches #6/#7 with more map-reads passing,
+zero 0x887 in the log (killed by timeout while compiling
+shaders, no crash). The same frame draws on WARP.
+- Run 3 (WARP + D3D12_DEBUG=debuglayer): layer never engages.
+D3D12CreateDevice fails E_INVALIDARG (0x80070057) for GENERIC
+and 11_0, Blender quits before any submit. The layer names
+nothing on this machine.
+Verdict per the decision matrix: prints show a valid copy,
+WARP draws the same frame, layer reports no error. Qualcomm
+Adreno driver defect rejecting a legal post-compute
+CopyBufferRegion. Recommendation: stop the Windows route; no
+further Mesa builds spent here.

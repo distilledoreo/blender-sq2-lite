@@ -1,0 +1,32 @@
+C:\b\intern\ghost\intern\GHOST_ContextWGL.cc:533: [GetLastError() == NO_ERROR] -> Win32 Error# (18): There are no more files.
+D3D12 SQ2: adapter[0] Qualcomm(R) Adreno(TM) 680 GPU (experimental)
+D3D12 SQ2: adapter[1] Microsoft Basic Render Driver (experimental)
+D3D12 SQ2: adapter selected Microsoft Basic Render Driver (experimental)
+D3D12 SQ2: debug via factory hr=0x0 debug=000002099C204340 (experimental)
+D3D12 SQ2: debuglayer flag=1 factory=000002099AFEB618 (experimental)
+D3D12 SQ2: factory CreateDevice GENERIC hr=0x80070057 dev=0000000000000000 (experimental)
+D3D12 SQ2: factory CreateDevice 11_0 hr=0x80070057 dev=0000000000000000 (experimental)
+C:\b\intern\ghost\intern\GHOST_ContextWGL.cc:203: [iLastResortPixelFormat != 0] -> Win32 Error# (0): The operation completed successfully.
+C:\b\intern\ghost\intern\GHOST_ContextWGL.cc:207: [lastPFD != 0] -> Win32 Error# (0): The operation completed successfully.
+Warning! Using result of ChoosePixelFormat.
+C:\b\intern\ghost\intern\GHOST_ContextWGL.cc:203: [iLastResortPixelFormat != 0] -> Win32 Error# (0): The operation completed successfully.
+C:\b\intern\ghost\intern\GHOST_ContextWGL.cc:207: [lastPFD != 0] -> Win32 Error# (0): The operation completed successfully.
+Warning! Using result of ChoosePixelFormat.
+C:\b\intern\ghost\intern\GHOST_ContextWGL.cc:203: [iLastResortPixelFormat != 0] -> Win32 Error# (0): The operation completed successfully.
+C:\b\intern\ghost\intern\GHOST_ContextWGL.cc:207: [lastPFD != 0] -> Win32 Error# (0): The operation completed successfully.
+Warning! Using result of ChoosePixelFormat.
+C:\b\intern\ghost\intern\GHOST_ContextWGL.cc:203: [iLastResortPixelFormat != 0] -> Win32 Error# (0): The operation completed successfully.
+C:\b\intern\ghost\intern\GHOST_ContextWGL.cc:207: [lastPFD != 0] -> Win32 Error# (0): The operation completed successfully.
+Warning! Using result of ChoosePixelFormat.
+C:\b\intern\ghost\intern\GHOST_ContextWGL.cc:203: [iLastResortPixelFormat != 0] -> Win32 Error# (0): The operation completed successfully.
+C:\b\intern\ghost\intern\GHOST_ContextWGL.cc:207: [lastPFD != 0] -> Win32 Error# (0): The operation completed successfully.
+Warning! Using result of ChoosePixelFormat.
+C:\b\intern\ghost\intern\GHOST_ContextWGL.cc:203: [iLastResortPixelFormat != 0] -> Win32 Error# (0): The operation completed successfully.
+C:\b\intern\ghost\intern\GHOST_ContextWGL.cc:207: [lastPFD != 0] -> Win32 Error# (0): The operation completed successfully.
+Warning! Using result of ChoosePixelFormat.
+C:\b\intern\ghost\intern\GHOST_ContextWGL.cc:203: [iLastResortPixelFormat != 0] -> Win32 Error# (0): The operation completed successfully.
+C:\b\intern\ghost\intern\GHOST_ContextWGL.cc:207: [lastPFD != 0] -> Win32 Error# (0): The operation completed successfully.
+Warning! Using result of ChoosePixelFormat.
+C:\b\intern\ghost\intern\GHOST_ContextWGL.cc:203: [iLastResortPixelFormat != 0] -> Win32 Error# (0): The operation completed successfully.
+C:\b\intern\ghost\intern\GHOST_ContextWGL.cc:207: [lastPFD != 0] -> Win32 Error# (0): The operation completed successfully.
+Warning! Using result of ChoosePixelFormat.

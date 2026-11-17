@@ -1,0 +1,64 @@
+Switching to fully guarded memory allocator.
+Blender 5.2.3 LTS
+argv[0] = C:\blender-sq2-gen2\blender.exe
+argv[1] = --factory-startup
+argv[2] = --debug
+argv[3] = --debug-gpu
+argv[4] = --log
+argv[5] = cycles
+00:00.656  gpu.debug        | Successfully hooked OpenGL debug callback
+00:00.781  gpu.debug        | Successfully hooked OpenGL debug callback
+00:01.219  gpu.debug        | Successfully hooked OpenGL debug callback
+00:01.359  gpu.debug        | Successfully hooked OpenGL debug callback
+00:01.359  gpu.platform     | Using GPU "Microsoft Corporation D3D12 (Microsoft Basic Render Driver) 4.3 (Core Profile) Mesa 26.3.0 (git-0a6fa60abb)"
+00:01.359  gpu.platform     | Using Backend "OpenGL"
+00:02.734  gpu.shader       | WARNING gpu_shader_2D_widget_base VertShader: 
+                            | 
+00:02.969  gpu.shader       | WARNING gpu_shader_2D_widget_base_inst VertShader: 
+                            | 
+00:03.500  gpu.shader       | WARNING overlay_armature_envelope_outline VertShader: 
+                            | 
+00:03.531  gpu.shader       | WARNING overlay_armature_shape_solid VertShader: 
+                            | 
+00:03.547  gpu.shader       | WARNING overlay_armature_shape_outline VertShader: 
+                            | 
+00:03.578  gpu.shader       | WARNING overlay_armature_shape_wire_strip VertShader: 
+                            | 
+00:03.609  gpu.shader       | WARNING overlay_armature_shape_wire VertShader: 
+                            | 
+00:03.641  gpu.shader       | WARNING overlay_armature_sphere_solid VertShader: 
+                            | 
+00:03.641  gpu.shader       | WARNING workbench_smaa_stage_0 VertShader: 
+                            | 
+00:03.656  gpu.shader       | WARNING workbench_smaa_stage_1 VertShader: 
+                            | 
+00:03.656  gpu.shader       | WARNING workbench_smaa_stage_1 FragShader: 
+                            | 
+00:03.656  gpu.shader       | WARNING overlay_armature_sphere_outline VertShader: 
+                            | 
+00:03.672  gpu.shader       | WARNING workbench_smaa_stage_2 VertShader: 
+                            | 
+00:03.781  gpu.shader       | WARNING overlay_background VertShader: 
+                            | 
+00:03.938  gpu.shader       | WARNING overlay_depth_gpencil VertShader: 
+                            | 
+00:04.625  gpu.shader       | WARNING overlay_outline_detect VertShader: 
+                            | 
+00:04.625  gpu.shader       | WARNING overlay_outline_detect FragShader: 
+                            | 
+00:04.703  gpu.shader       | WARNING overlay_outline_prepass_gpencil VertShader: 
+                            | 
+00:04.891  gpu.shader       | WARNING overlay_particle_hair VertShader: 
+                            | 
+00:04.984  gpu.shader       | WARNING overlay_wireframe_curve VertShader: 
+                            | 
+00:05.000  gpu.shader       | WARNING overlay_wireframe VertShader: 
+                            | 
+00:05.031  gpu.shader       | WARNING overlay_wireframe_points VertShader: 
+                            | 
+00:05.047  gpu.shader       | WARNING overlay_wireframe_points_with_radius VertShader: 
+                            | 
+00:05.078  gpu.shader       | WARNING workbench_prepass_mesh_opaque_studio_material_no_clip VertShader: 
+                            | 
+00:05.328  gpu.shader       | WARNING draw_command_generate ComputeShader: 
+                            | 

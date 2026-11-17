@@ -1,0 +1,10 @@
+Switching to fully guarded memory allocator.
+Blender 5.2.3 LTS
+argv[0] = C:\blender-sq2-gen2\blender.exe
+argv[1] = --factory-startup
+argv[2] = --debug
+argv[3] = --debug-gpu
+argv[4] = --log
+argv[5] = cycles
+
+Blender quit

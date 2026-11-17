@@ -1,0 +1,88 @@
+Switching to fully guarded memory allocator.
+Blender 5.2.3 LTS
+argv[0] = C:\blender-sq2-gen2\blender.exe
+argv[1] = --factory-startup
+argv[2] = --debug
+argv[3] = --debug-gpu
+argv[4] = --log
+argv[5] = cycles
+=====================================
+Qualcomm drivers older than 30.0.3820.x cannot run Blender 4.0 or later.
+If your device is older than an 8cx Gen3, you must use a 3.x LTS release.
+If you have an 8cx Gen3 or newer device, a driver update may be available.
+=====================================
+00:01.594  gpu.debug        | Successfully hooked OpenGL debug callback
+00:01.797  gpu.debug        | Successfully hooked OpenGL debug callback
+00:02.360  gpu.debug        | Successfully hooked OpenGL debug callback
+00:02.485  gpu.debug        | Successfully hooked OpenGL debug callback
+00:02.485  gpu.platform     | Using GPU "Microsoft Corporation D3D12 (Qualcomm(R) Adreno(TM) 680 GPU) 4.3 (Core Profile) Mesa 26.3.0 (git-0a6fa60abb)"
+00:02.485  gpu.platform     | Using Backend "OpenGL"
+00:02.485  gpu.platform     | Blender - Limited Platform Support
+                            | 
+                            | Your graphics card or driver version has limited support. It may work, but with issues.
+                            |  
+                            | Newer graphics drivers might be available with better Blender compatibility.
+                            |  
+                            | Graphics card:
+                            | Microsoft Corporation D3D12 (Qualcomm(R) Adreno(TM) 680 GPU) 4.3 (Core Profile) Mesa 26.3.0 (git-0a6fa60abb)
+                            | https://docs.blender.org/manual/en/dev/troubleshooting/gpu/windows/unknown.html
+                            | 
+07:28:13.797  gpu.shader       | WARNING gpu_shader_2D_widget_base VertShader: 
+                               | 
+07:28:14.204  gpu.shader       | WARNING gpu_shader_2D_widget_base_inst VertShader: 
+                               | 
+07:28:14.797  gpu.shader       | WARNING overlay_armature_envelope_outline VertShader: 
+                               | 
+07:28:14.829  gpu.shader       | WARNING overlay_armature_shape_solid VertShader: 
+                               | 
+07:28:14.860  gpu.shader       | WARNING overlay_armature_shape_outline VertShader: 
+                               | 
+07:28:14.922  gpu.shader       | WARNING overlay_armature_shape_wire_strip VertShader: 
+                               | 
+07:28:14.969  gpu.shader       | WARNING overlay_armature_shape_wire VertShader: 
+                               | 
+07:28:15.000  gpu.shader       | WARNING overlay_armature_sphere_solid VertShader: 
+                               | 
+07:28:15.032  gpu.shader       | WARNING workbench_smaa_stage_0 VertShader: 
+                               | 
+07:28:15.032  gpu.shader       | WARNING overlay_armature_sphere_outline VertShader: 
+                               | 
+07:28:15.047  gpu.shader       | WARNING workbench_smaa_stage_1 VertShader: 
+                               | 
+07:28:15.047  gpu.shader       | WARNING workbench_smaa_stage_1 FragShader: 
+                               | 
+07:28:15.063  gpu.shader       | WARNING workbench_smaa_stage_2 VertShader: 
+                               | 
+07:28:15.172  gpu.shader       | WARNING overlay_background VertShader: 
+                               | 
+07:28:15.329  gpu.shader       | WARNING overlay_depth_gpencil VertShader: 
+                               | 
+07:28:16.094  gpu.shader       | WARNING overlay_outline_detect VertShader: 
+                               | 
+07:28:16.094  gpu.shader       | WARNING overlay_outline_detect FragShader: 
+                               | 
+07:28:16.172  gpu.shader       | WARNING overlay_outline_prepass_gpencil VertShader: 
+                               | 
+07:28:16.360  gpu.shader       | WARNING overlay_particle_hair VertShader: 
+                               | 
+07:28:16.438  gpu.shader       | WARNING overlay_wireframe_curve VertShader: 
+                               | 
+07:28:16.454  gpu.shader       | WARNING overlay_wireframe VertShader: 
+                               | 
+07:28:16.485  gpu.shader       | WARNING overlay_wireframe_points VertShader: 
+                               | 
+07:28:16.500  gpu.shader       | WARNING overlay_wireframe_points_with_radius VertShader: 
+                               | 
+07:28:16.532  gpu.shader       | WARNING workbench_prepass_mesh_opaque_studio_material_no_clip VertShader: 
+                               | 
+07:28:16.766  gpu.shader       | WARNING draw_command_generate ComputeShader: 
+                               | 
+07:28:16.766  gpu.debug        | ERROR GL_OUT_OF_MEMORY in glBufferData
+07:28:17.657  gpu.debug        | ERROR GL_INVALID_VALUE in glBufferSubData(offset 0 + size 288 > buffer size 0)
+07:28:18.047  gpu.debug        | ERROR GL_OUT_OF_MEMORY in glBufferData
+07:28:18.500  gpu.debug        | ERROR GL_INVALID_VALUE in glBufferSubData(offset 0 + size 96 > buffer size 0)
+07:28:18.907  gpu.debug        | ERROR GL_OUT_OF_MEMORY in glBufferData
+07:28:19.454  gpu.debug        | ERROR GL_INVALID_VALUE in glBufferSubData(offset 0 + size 72 > buffer size 0)
+07:28:19.875  gpu.debug        | ERROR GL_OUT_OF_MEMORY in glBufferData
+07:28:20.266  gpu.debug        | ERROR GL_INVALID_VALUE in glBufferSubData(offset 0 + size 4 > buffer size 0)
+Writing: C:\Users\disti\AppData\Local\Temp\blender.crash.txt
