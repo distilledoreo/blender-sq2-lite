@@ -406,3 +406,11 @@ per-command split flush+fence from the compute batch onward,
 transition before/after prints, compute SSBO list + 16-byte readback,
 TextureView done-error + bind-time view-reinterpret prints, and the
 DRED breadcrumb/pagefault reader in the nonzero-removal path.
+
+Split-build repair (build 43998272335 failed at patch stage): the
+two rejected hunks were patch-authoring defects, not upstream drift
+(CI tree is tag 26.3.0, identical to local). The copybuf hunk carried
+stale trailing context (`static void` vs actual `static size_t`);
+the textureview hunk pointed past its mark and two context lines were
+missing the diff marker space. Both trimmed/fixed; full chain now
+passes `git apply --check` in an isolated LF harness.
