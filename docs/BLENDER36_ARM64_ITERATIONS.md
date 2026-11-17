@@ -1,0 +1,33 @@
+# Blender 3.6 Windows-ARM64: CI iteration log
+
+Workflow: `.github/workflows/blender36-arm64.yml` (`blender36-arm64-lite`),
+runner `windows-11-arm`, Ninja + `vcvarsall arm64`.
+
+Setup per run: clone Blender `v3.6.23` → clone `lib-windows_arm64`
+(`blender-v4.2-release`) into `lib/windows_arm64` → inject ARM64 CPython
+3.10.11 (nuget `pythonarm64`) at `lib/windows_arm64/python/310` → apply
+`custom-driver/blender36/*.patch` → configure lite → build.
+
+| # | run | first failure | cause | fix |
+|---|-----|---------------|-------|-----|
+| 1 | 44110093352 | configure: `Generator Visual Studio 17 2022 could not find any instance of Visual Studio` | the arm64 runner has VS 2026 (Build Tools/Enterprise) and the VS generator does not accept it; the 5.2 arm64 build uses Ninja | configure with `-G Ninja` inside `vcvarsall arm64` (`ci_configure_arm64.bat`) |
+| 2 | — | workflow file invalid (YAML) | batch heredoc was written at column 1 inside a YAML block scalar | moved the batch logic into `custom-driver/blender36/ci_*.bat` |
+| 3 | 44111743714 | `ninja: error: libgmp-10.lib missing` | arm64 dep set ships `gmp.dll.lib` | patch hunk 5 in `0001-windows-arm64-build-support.patch` |
+| 4 | 44114093421 | `ninja: error: libfftw.lib missing` | 3.6 knows `libfftw3-3.lib` (3.3) and `libfftw.lib` (3.5); the arm64 set uses `fftw3.lib`/`fftw3f.lib` | patch hunk 6: `elseif(EXISTS ${FFTW3}/lib/fftw3.lib)` |
+| 5 | 44115308225 | `ninja: error: opencollada/lib/opencollada/pcre.lib missing` | OpenCOLLADA's bundled pcre is absent from the arm64 set | `-DWITH_OPENCOLLADA=OFF` (lite) |
+| 6 | 44116466381 | `ninja: error: libsndfile-1.lib missing` | arm64 set ships `sndfile.lib`; 3.6 referenced it through the `${LIBSNDFILE_LIBPATH}` alias, so the literal scan missed it | patch hunk 7: `if(EXISTS ...libsndfile-1.lib) else sndfile.lib` |
+| 7 | 44117699207 | `GHOST_SystemWin32.cc: error C2059: syntax error: ')'` ×13 | `WINTAB_PRINTF(x, ...)` expands to `printf(x, __VA_ARGS__)`; calls with a format string only become `printf(x, )`, which `/Zc:preprocessor` (mandatory for sse2neon) rejects | `0002-ghost-wintab-printf-conforming-preprocessor.patch`, same `_MSVC_TRADITIONAL` split upstream 4.2 uses |
+| 8 | 44119916610 | `extern/lzo/minilzo/lzodefs.h: #error FIXME - missing LZO_OS_WIN64 define for CPU architecture` | LZO detects ARM64 only via `__aarch64__`, never `_M_ARM64` | `0003-lzo-arch-arm64-msvc.patch` |
+
+Progress markers: run 7 reached `[1746/4757]` objects before the GHOST error,
+run 8 reached `[2029/4757]`.
+
+Reusable helpers:
+
+- `ci_configure_arm64.bat` / `ci_build_arm64.bat` — vcvarsall arm64 + cmake.
+- The patch set is applied by glob, so new patches are picked up automatically.
+
+Standing lite option set: `WITH_CYCLES/USD/ALEMBIC/OPENIMAGEDENOISE/FFMPEG/
+OPENVDB/OPENSUBDIV/COLLADA/OPENCOLLADA/POTRACE/BOOST/HYDRA/XR_OPENXR=OFF`,
+`WITH_PYTHON_INSTALL=OFF`. Cycles and the importers are the "full" round,
+added after lite links.
