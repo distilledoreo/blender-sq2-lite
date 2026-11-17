@@ -21,10 +21,11 @@ Setup per run: clone Blender `v3.6.23` → clone `lib-windows_arm64`
 | 9 | 44127891836 | step *Inject ARM64 Python 3.10*: `numpy sdist not downloaded` | no cp310/win_arm64 numpy wheel exists; `pip download --no-binary=:all:` built metadata for 5 min and left no `.tar.gz` | take the arch-independent `numpy/core/include` from the `win_amd64` wheel instead of an sdist |
 | 10 | 44130007352 | `interface_template_asset_view.cc(184): error C2059: syntax error: ')'` ×7 | `RNA_warning(format, ...)` expands to `_RNA_warning(..., __FUNCTION__, __VA_ARGS__)`; a format-only call leaves `, )`. The traditional MSVC preprocessor drops that comma, `/Zc:preprocessor` (from `0001`) does not. Every other `__VA_ARGS__` macro in the tree either takes a real first argument or is a `VA_NARGS` overload, so `RNA_warning` was the only remaining case (9 call sites). | `0004-rna-warning-empty-varargs-conforming-preprocessor.patch`, `_MSVC_TRADITIONAL` split like `0002`; reproducing locally with MSVC 14.51 gives the identical `error C2059` for the old form and no error for the new one |
 
+| 11 | 44137370636 | `blenlib/intern/system.c(126): error C4013: '__cpuid' undefined; assuming extern returning int` | `BLI_cpu_brand_string()` / `BLI_cpu_support_sse41()` call MSVC's `__cpuid` intrinsic, which only exists for x86; 3.6 has no ARM guard | `0005-blenlib-cpuid-x86-only.patch`: `#if !defined(_M_ARM64)` around both CPUID blocks, the CPU brand falls back to the registry `VendorIdentifier` (`advapi32` is already in the 3.6 Windows link list), SSE4.1 reports 0; same shape as upstream 4.2 |
+
 Progress markers: run 7 reached `[1746/4757]` objects before the GHOST error,
-run 8 reached `[2029/4757]`, run 10 reached `[2432/4757]` (the last 400 objects
-are the long-tail editors/GPU/python units, so each round now clears fewer
-objects than the number suggests).
+run 8 reached `[2029/4757]`, run 10 reached `[2432/4757]`, run 11 reached
+`[3429/4757]`.
 
 Reusable helpers:
 
