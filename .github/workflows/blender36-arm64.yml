@@ -72,9 +72,16 @@ jobs:
           & "$dst\bin\python.exe" -c "import sys; print('python', sys.version, sys.platform)"
           Write-Host "python310.lib present: $(Test-Path "$dst\libs\python310.lib")"
           # audaspace's Python bindings include numpy headers, and 3.6 looks for the
-          # pre-2.0 layout numpy/core/include, so pin numpy 1.26.
-          & "$dst\bin\python.exe" -m ensurepip --upgrade 2>&1 | Select-Object -Last 2
-          & "$dst\bin\python.exe" -m pip install --no-warn-script-location --disable-pip-version-check --target "$dst\lib\site-packages" "numpy==1.26.4" 2>&1 | Select-Object -Last 3
+          # pre-2.0 layout numpy/core/include. There is no win_arm64/cp310 numpy
+          # wheel, so take the headers from the 1.26.4 sdist (compile-time only;
+          # the `aud` module still needs numpy at runtime).
+          $npdl = "$env:RUNNER_TEMP\npsrc"
+          & "$dst\bin\python.exe" -m pip download "numpy==1.26.4" --no-binary=:all: --no-deps -d $npdl 2>&1 | Select-Object -Last 2
+          $tgz = (Get-ChildItem "$npdl\*.tar.gz" | Select-Object -First 1).FullName
+          if (-not $tgz) { throw "numpy sdist not downloaded" }
+          tar -xzf $tgz -C $npdl
+          $root = (Get-ChildItem $npdl -Directory | Where-Object { $_.Name -like "numpy-*" } | Select-Object -First 1).FullName
+          Copy-Item "$root\numpy\core\include" "$dst\lib\site-packages\numpy\core\include" -Recurse -Force
           $np = "$dst\lib\site-packages\numpy\core\include\numpy\ndarrayobject.h"
           Write-Host "numpy headers present: $(Test-Path $np)"
           if (-not (Test-Path $np)) { throw "numpy headers missing at $np" }
