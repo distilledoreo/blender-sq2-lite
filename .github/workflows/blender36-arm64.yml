@@ -75,13 +75,17 @@ jobs:
           # pre-2.0 layout numpy/core/include. There is no win_arm64/cp310 numpy
           # wheel, so take the headers from the 1.26.4 sdist (compile-time only;
           # the `aud` module still needs numpy at runtime).
-          $npdl = "$env:RUNNER_TEMP\npsrc"
-          & "$dst\bin\python.exe" -m pip download "numpy==1.26.4" --no-binary=:all: --no-deps -d $npdl 2>&1 | Select-Object -Last 2
-          $tgz = (Get-ChildItem "$npdl\*.tar.gz" | Select-Object -First 1).FullName
-          if (-not $tgz) { throw "numpy sdist not downloaded" }
-          tar -xzf $tgz -C $npdl
-          $root = (Get-ChildItem $npdl -Directory | Where-Object { $_.Name -like "numpy-*" } | Select-Object -First 1).FullName
-          Copy-Item "$root\numpy\core\include" "$dst\lib\site-packages\numpy\core\include" -Recurse -Force
+          # numpy's C headers are architecture-independent, so take numpy/core/include
+          # from any 1.26.4 wheel (there is no cp310/win_arm64 build).
+          $npdl = "$env:RUNNER_TEMP\npwheel"
+          New-Item -ItemType Directory -Force $npdl | Out-Null
+          & "$dst\bin\python.exe" -m pip download numpy==1.26.4 --only-binary=:all: --platform win_amd64 --python-version 310 --implementation cp --no-deps -d $npdl 2>&1 | Select-Object -Last 2
+          $whl = (Get-ChildItem "$npdl\*.whl" | Select-Object -First 1).FullName
+          Write-Host "numpy wheel: $whl"
+          if (-not $whl) { throw "numpy wheel not downloaded" }
+          Copy-Item $whl "$npdl\numpy.zip" -Force
+          Expand-Archive "$npdl\numpy.zip" -DestinationPath "$npdl\x" -Force
+          Copy-Item "$npdl\x\numpy\core\include" "$dst\lib\site-packages\numpy\core\include" -Recurse -Force
           $np = "$dst\lib\site-packages\numpy\core\include\numpy\ndarrayobject.h"
           Write-Host "numpy headers present: $(Test-Path $np)"
           if (-not (Test-Path $np)) { throw "numpy headers missing at $np" }
