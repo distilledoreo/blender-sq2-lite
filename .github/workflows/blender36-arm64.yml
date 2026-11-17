@@ -70,6 +70,22 @@ jobs:
           if (-not (Test-Path C:\b\lib\windows_arm64\.git)) { throw "libdir has no .git, 3.6 rejects it" }
           Get-ChildItem C:\b\lib\windows_arm64 | Select-Object -First 40 Name
 
+      # 3.6's source tree has no scripts/addons: the release process clones
+      # blender-addons there (make_update.py does the same), so a plain clone
+      # builds a Blender whose Python cannot even enable its own add-ons.
+      - name: Clone add-ons (blender-addons v3.6.23)
+        shell: pwsh
+        run: |
+          foreach ($attempt in 1..3) {
+            if (Test-Path C:\b\scripts\addons) { Remove-Item -Recurse -Force C:\b\scripts\addons }
+            git clone --depth 1 -b v3.6.23 https://projects.blender.org/blender/blender-addons.git C:\b\scripts\addons
+            if ($LASTEXITCODE -eq 0) { break }
+            if ($attempt -eq 3) { throw "addons clone failed after 3 attempts" }
+            Write-Host "addons clone attempt $attempt failed, retrying"
+            Start-Sleep -Seconds 20
+          }
+          Write-Host "add-on packages: $((Get-ChildItem C:\b\scripts\addons -Directory).Count)"
+
       - name: Inject ARM64 Python 3.10 (3.6 pins 3.10)
         shell: pwsh
         run: |
@@ -80,9 +96,15 @@ jobs:
           $t = "$env:RUNNER_TEMP\py310\tools"
           $dst = "C:\b\lib\windows_arm64\python\310"
           New-Item -ItemType Directory -Force "$dst\bin", "$dst\include", "$dst\libs", "$dst\lib\site-packages" | Out-Null
+          # Layout must match the 3.6 lib set, because creator/CMakeLists.txt
+          # installs python/310/lib as <ver>/python/lib (the stdlib) and reads
+          # DLLs and bin/python.exe from the same paths. The nuget package
+          # calls them Lib and keeps the runtime DLLs loose; neither is what
+          # the install rules look for.
           Copy-Item "$t\python.exe", "$t\python310.dll", "$t\python3.dll" "$dst\bin\" -Force
-          Copy-Item "$t\DLLs" "$dst\bin\DLLs" -Recurse -Force
-          Copy-Item "$t\Lib" "$dst\bin\Lib" -Recurse -Force
+          Copy-Item "$t\vcruntime140.dll", "$t\vcruntime140_1.dll" "$dst\bin\" -Force
+          Copy-Item "$t\DLLs" "$dst\DLLs" -Recurse -Force
+          Copy-Item "$t\Lib\*" "$dst\lib\" -Recurse -Force
           Copy-Item "$t\include\*" "$dst\include\" -Recurse -Force
           Copy-Item "$t\libs\*" "$dst\libs\" -Recurse -Force
           & "$dst\bin\python.exe" -c "import sys; print('python', sys.version, sys.platform)"
@@ -175,9 +197,9 @@ jobs:
         if: ${{ !inputs.configure_only && success() }}
         shell: pwsh
         run: |
-          # Assemble build\bin into a runnable tree (scripts + datafiles). Python
-          # is not bundled (WITH_PYTHON_INSTALL=OFF) and the bridge runs on the
-          # system Python, so this is only about Blender's own resources.
+          # Assemble build\bin into a runnable tree (scripts, add-ons, datafiles
+          # and the bundled Python). The checks below fail the step if any of
+          # those did not land, so a partial install cannot be uploaded.
           cmake --install C:\b\build
           if ($LASTEXITCODE -ne 0) { Write-Host "install reported $LASTEXITCODE (non-fatal), staging build\bin as-is" }
 
@@ -220,6 +242,26 @@ jobs:
           if ($proc.ExitCode -ne 0) { throw "blender.exe --version exited $($proc.ExitCode)" }
           if (-not (Select-String -Path $verFile -Pattern "Blender 3\.6\." -Quiet)) { throw "version output missing" }
           Remove-Item $verFile -Force
+
+          # --version never starts Python, so a tree missing python/lib (no
+          # `encodings`) still exits 0. Initialise Python and use an add-on to
+          # prove the install tree is actually complete.
+          $checkPy = "C:\b\build\bin\pycheck.py"
+          $lines = @(
+            'import sys',
+            'import encodings  # needs python/lib (the bundled stdlib)',
+            'import bpy',
+            'import io_scene_fbx  # needs scripts/addons',
+            "print('PYOK', sys.version.split()[0], bpy.app.version_string, io_scene_fbx.bl_info['name'])"
+          )
+          Set-Content -Path $checkPy -Value $lines -Encoding ascii
+          & "C:\b\build\bin\blender.exe" -b --factory-startup --python-exit-code 13 --python $checkPy 2>&1 | Select-String "PYOK|No module named|Traceback"
+          if ($LASTEXITCODE -ne 0) { throw "python smoke test exited $LASTEXITCODE" }
+          Remove-Item $checkPy -Force -ErrorAction SilentlyContinue
+
+          foreach ($p in "3.6\python\lib\encodings", "3.6\python\DLLs", "3.6\scripts\addons\io_scene_fbx") {
+            if (-not (Test-Path (Join-Path "C:\b\build\bin" $p))) { throw "install tree is missing $p" }
+          }
 
       - name: Upload blender.exe
         if: ${{ !inputs.configure_only && always() }}
