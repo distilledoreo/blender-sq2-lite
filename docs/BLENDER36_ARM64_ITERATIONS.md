@@ -25,9 +25,11 @@ Setup per run: clone Blender `v3.6.23` → clone `lib-windows_arm64`
 
 | 12 | 44144435107 | `system_win32.c(145): error C2039: 'Rip': is not a member of '_CONTEXT'` and `BKE_customdata.h(687): error C2220` (warning C5287) | crash backtrace read the x64 register names `Rip`/`Rsp` and always walked as `IMAGE_FILE_MACHINE_AMD64`; and the `CD_FAKE_*` layer ids OR the `CD_FAKE` int enum with `eCustomDataType` enum values, which MSVC 14.4x warns about and `/WX` turns into an error | `0006`: `_M_AMD64`/`_M_ARM64` split using `Pc`/`Fp`/`Sp` and `IMAGE_FILE_MACHINE_ARM64`, copied from upstream 4.2; `0007`: `(int)` casts on the four mixed-type values, verified locally against MSVC 14.51 (`C5287` reproduces without the cast, absent with it) |
 
+| 13 | 44149534406 | `bmesh_operators.c(238): error C2220` (warning C5287: `eBMOpSlotSubType_Elem` and `<unnamed-enum-BM_VERT>`) | `BM_ALL`/`BM_ALL_NOLOOP` are macros built from the unnamed bmesh element enum, so AND-ing them with an enum-typed field warns; the same pattern sits in the `BLI_assert` calls | `0008`: cast the two masks to `int` in `bmesh_class.h`, which also covers the asserts; every consumer takes `char htype`, so the int constant converts silently (checked with MSVC 14.51 in C++) |
+
 Progress markers: run 7 reached `[1746/4757]` objects before the GHOST error,
 run 8 reached `[2029/4757]`, run 10 reached `[2432/4757]`, run 11 reached
-`[3429/4757]`, run 12 reached `[3449/4757]`.
+`[3429/4757]`, run 12 reached `[3449/4757]`, run 13 reached `[3506/4757]`.
 
 Reusable helpers:
 

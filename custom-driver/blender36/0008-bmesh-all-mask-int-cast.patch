@@ -1,0 +1,15 @@
+--- a/source/blender/bmesh/bmesh_class.h
++++ b/source/blender/bmesh/bmesh_class.h
+@@ -413,8 +413,10 @@
+   int totloop;
+ } BMLoopNorEditDataArray;
+ 
+-#define BM_ALL (BM_VERT | BM_EDGE | BM_LOOP | BM_FACE)
+-#define BM_ALL_NOLOOP (BM_VERT | BM_EDGE | BM_FACE)
++/* Cast to int so the masks can be combined with other enum types without MSVC 14.4x warning
++ * C5287 ("operands are different enum types"), which this build treats as an error. */
++#define BM_ALL ((int)(BM_VERT | BM_EDGE | BM_LOOP | BM_FACE))
++#define BM_ALL_NOLOOP ((int)(BM_VERT | BM_EDGE | BM_FACE))
+ 
+ /** #BMesh.spacearr_dirty */
+ enum {
