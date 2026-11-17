@@ -29,10 +29,14 @@ Setup per run: clone Blender `v3.6.23` → clone `lib-windows_arm64`
 
 | 14 | 44154903843 | `imbuf/intern/format_bmp.cc`: `C:\b\lib\windows_arm64\OpenImageIO\include\OpenImageIO/half.h(14): fatal error C1083: Cannot open include file: 'Imath/half.h'` (same error in `format_dds`, `format_hdr`, `format_png`, `format_psd`, `format_targa`, `format_tiff`) | `oiio/openimageio_support.hh` pulls in OIIO's public headers; the 4.2 arm64 OIIO is built against a separate `imath` package (`lib/windows_arm64/imath/include/Imath`), and 3.6 only puts `${OPENIMAGEIO_INCLUDE_DIRS}` on the include path. Upstream 4.2 added an ARM64-only block that also adds `${IMATH_INCLUDE_DIRS}` to both `bf_imbuf` and `bf_imbuf_openimageio` ("Keep until APPLE/ARM libraries are updated"); 3.6 predates it and its Windows OIIO had Imath bundled. | `0009-windows-arm64-imath-include.patch`: the same two hunks, gated the same way (3.6's `platform_win32.cmake` already defines `IMATH_INCLUDE_DIRS` under `WITH_IMAGE_OPENEXR`, and `CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64"` is the condition `0001` already relies on for the arm64 lib dir); verified to apply against pristine `v3.6.23` |
 
+| 15 | 44162087382 | no compile started: `Clone Blender 3.6 source` died with `fatal: unable to access 'https://projects.blender.org/blender/blender.git/': Recv failure: Connection was reset` | transient network fault on projects.blender.org | workflow: up to three clone attempts with a 20 s backoff for both the source and the arm64 dependency clones |
+
+| 16 | 44162564708 | — **build succeeded** | `0009` was the last compile blocker | configure, build (`[4757/4757]`) and link all completed; `blender.exe` was 54,822,912 bytes. The run only uploaded logs, so the binary stayed on the ephemeral runner: added a PE-header machine check (`0xAA64`), a `cmake --install` staging step with an in-run `blender.exe --version` smoke test, and a `blender36-lite-arm64` artifact |
+
 Progress markers: run 7 reached `[1746/4757]` objects before the GHOST error,
 run 8 reached `[2029/4757]`, run 10 reached `[2432/4757]`, run 11 reached
 `[3429/4757]`, run 12 reached `[3449/4757]`, run 13 reached `[3506/4757]`,
-run 14 reached `[3913/4757]`.
+run 14 reached `[3913/4757]`, run 16 completed `[4757/4757]` plus the link.
 
 Reusable helpers:
 

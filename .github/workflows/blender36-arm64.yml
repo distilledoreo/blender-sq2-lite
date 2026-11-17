@@ -157,3 +157,38 @@ jobs:
         shell: pwsh
         run: |
           Get-ChildItem C:\b\build -Recurse -Filter blender.exe | Select-Object FullName, Length
+          $exe = "C:\b\build\bin\blender.exe"
+          if (-not (Test-Path $exe)) { throw "blender.exe missing at $exe" }
+          # PE header check: a native ARM64 image reports machine 0xAA64, a
+          # cross-built x64 one would report 0x8664.
+          $fs = [IO.File]::OpenRead($exe)
+          $br = New-Object IO.BinaryReader($fs)
+          $fs.Position = 0x3C
+          $peOffset = $br.ReadInt32()
+          $fs.Position = $peOffset + 4
+          $machine = $br.ReadUInt16()
+          $br.Dispose()
+          Write-Host ("PE machine: 0x{0:X4} (ARM64 is 0xAA64)" -f $machine)
+          if ($machine -ne 0xAA64) { throw "blender.exe is not an ARM64 PE image" }
+
+      - name: Stage runtime tree and smoke test
+        if: ${{ !inputs.configure_only && success() }}
+        shell: pwsh
+        run: |
+          # Assemble build\bin into a runnable tree (scripts + datafiles). Python
+          # is not bundled (WITH_PYTHON_INSTALL=OFF) and the bridge runs on the
+          # system Python, so this is only about Blender's own resources.
+          cmake --install C:\b\build
+          if ($LASTEXITCODE -ne 0) { Write-Host "install reported $LASTEXITCODE (non-fatal), staging build\bin as-is" }
+          Get-ChildItem C:\b\build\bin | Select-Object Name, Length | Format-Table -AutoSize
+          & C:\b\build\bin\blender.exe --version
+          if ($LASTEXITCODE -ne 0) { throw "blender.exe --version failed on the ARM64 runner" }
+
+      - name: Upload blender.exe
+        if: ${{ !inputs.configure_only && always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: blender36-lite-arm64
+          path: C:\b\build\bin
+          retention-days: 7
+          if-no-files-found: warn
