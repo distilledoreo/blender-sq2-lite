@@ -1,0 +1,178 @@
+D3D12 SQ2: debuglayer flag=0 factory=000001ABBD11A4B8 (experimental)
+D3D12 SQ2: factory CreateDevice GENERIC hr=0x0 dev=000001ABBD4B22E0 (experimental)
+D3D12 SQ2: highest shader model 0x61, max feature level 0xc100
+D3D12 SQ2: TypedUAVLoadAdditionalFormats=1
+D3D12 SQ2: fmt 11 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 13 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 16 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 17 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 18 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 24 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 25 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 26 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 31 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 34 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 35 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 36 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 37 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 38 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 49 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 50 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 51 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 52 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 56 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 58 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: fmt 63 hr=0x0 tuav=1 load=0 store=1
+D3D12 SQ2: forcing past failed format (experimental)
+D3D12 SQ2: end_batch enter (experimental)
+D3D12 SQ2: submit 8589934593 Execute removed=0x0 (experimental)
+D3D12 SQ2: transition res=000001ABBDB41E10 before=0x0 after=0x0 flags=1 (experimental)
+D3D12 SQ2: flush submit=4294967297 (experimental)
+D3D12 SQ2: end_batch enter (experimental)
+D3D12 SQ2: submit 4294967297 Execute removed=0x0 (experimental)
+D3D12 SQ2: end_batch enter (experimental)
+D3D12 SQ2: submit 4294967298 Execute removed=0x0 (experimental)
+D3D12 SQ2: copycaller map-write submit=12884901889 staging=000001ABBDC63280 res=000001ABBD5F6650 width=16 (experimental)
+D3D12 SQ2: copyinfo submit=12884901889 width=16 src_pipe=000001ABBDC63280 dst_pipe=000001ABBD5F6650 src=000001ABBDC7F3B0 dst=000001ABBDC802B0 same=0 src_w=256 dst_w=16 src_heap=4 dst_heap=4 src_off=0 dst_off=0 src_sub=0 dst_sub=0 (experimental)
+D3D12 SQ2: transition res=000001ABBDC63280 before=0x0 after=0x800 flags=1 (experimental)
+D3D12 SQ2: transition res=000001ABBD5F6650 before=0x0 after=0x400 flags=1 (experimental)
+D3D12 SQ2: copybuf submit=12884901889 width=16 (experimental)
+D3D12 SQ2: copybuf16 submit=12884901889 width=16 dst=000001ABBD5F6650 src=000001ABBDC63280 (experimental)
+D3D12 SQ2: res copysrc null (experimental)
+D3D12 SQ2: res copydst null (experimental)
+D3D12 SQ2: flush submit=12884901889 (experimental)
+D3D12 SQ2: end_batch enter (experimental)
+D3D12 SQ2: submit 12884901889 Execute removed=0x0 (experimental)
+D3D12 SQ2: copycaller map-read submit=12884901890 res=000001ABBD5F6650 staging=000001ABBDC63F00 width=16 (experimental)
+D3D12 SQ2: copyinfo submit=12884901890 width=16 src_pipe=000001ABBD5F6650 dst_pipe=000001ABBDC63F00 src=000001ABBDC802B0 dst=000001ABBDC7F3B0 same=0 src_w=16 dst_w=256 src_heap=4 dst_heap=4 src_off=0 dst_off=512 src_sub=0 dst_sub=512 (experimental)
+D3D12 SQ2: transition res=000001ABBD5F6650 before=0x0 after=0x800 flags=1 (experimental)
+D3D12 SQ2: transition res=000001ABBDC63F00 before=0x0 after=0x400 flags=1 (experimental)
+D3D12 SQ2: copybuf submit=12884901890 width=16 (experimental)
+D3D12 SQ2: copybuf16 submit=12884901890 width=16 dst=000001ABBDC63F00 src=000001ABBD5F6650 (experimental)
+D3D12 SQ2: res copysrc null (experimental)
+D3D12 SQ2: res copydst null (experimental)
+D3D12 SQ2: flush submit=12884901890 (experimental)
+D3D12 SQ2: end_batch enter (experimental)
+D3D12 SQ2: submit 12884901890 Execute removed=0x0 (experimental)
+D3D12 SQ2: copycaller map-write submit=12884901891 staging=000001ABBDC64B80 res=000001ABBDC64820 width=16 (experimental)
+D3D12 SQ2: copyinfo submit=12884901891 width=16 src_pipe=000001ABBDC64B80 dst_pipe=000001ABBDC64820 src=000001ABBDC7F3B0 dst=000001ABBDC7C9B0 same=0 src_w=256 dst_w=16 src_heap=4 dst_heap=4 src_off=1024 dst_off=0 src_sub=1024 dst_sub=0 (experimental)
+D3D12 SQ2: transition res=000001ABBDC64B80 before=0x0 after=0x800 flags=1 (experimental)
+D3D12 SQ2: transition res=000001ABBDC64820 before=0x0 after=0x400 flags=1 (experimental)
+D3D12 SQ2: copybuf submit=12884901891 width=16 (experimental)
+D3D12 SQ2: copybuf16 submit=12884901891 width=16 dst=000001ABBDC64820 src=000001ABBDC64B80 (experimental)
+D3D12 SQ2: res copysrc null (experimental)
+D3D12 SQ2: res copydst null (experimental)
+D3D12 SQ2: copycaller map-write submit=12884901891 staging=000001ABBDDFDBB0 res=000001ABBDDFD530 width=16 (experimental)
+D3D12 SQ2: copyinfo submit=12884901891 width=16 src_pipe=000001ABBDDFDBB0 dst_pipe=000001ABBDDFD530 src=000001ABBDC7F3B0 dst=000001ABBDC7EDB0 same=0 src_w=256 dst_w=16 src_heap=4 dst_heap=4 src_off=1536 dst_off=0 src_sub=1536 dst_sub=0 (experimental)
+D3D12 SQ2: transition res=000001ABBDDFDBB0 before=0x0 after=0x800 flags=1 (experimental)
+D3D12 SQ2: transition res=000001ABBDDFD530 before=0x0 after=0x400 flags=1 (experimental)
+D3D12 SQ2: copybuf submit=12884901891 width=16 (experimental)
+D3D12 SQ2: copybuf16 submit=12884901891 width=16 dst=000001ABBDDFD530 src=000001ABBDDFDBB0 (experimental)
+D3D12 SQ2: res copysrc null (experimental)
+D3D12 SQ2: res copydst null (experimental)
+D3D12 SQ2: copycaller map-write submit=12884901891 staging=000001ABBDDFDD50 res=000001ABBDDFD050 width=16 (experimental)
+D3D12 SQ2: copyinfo submit=12884901891 width=16 src_pipe=000001ABBDDFDD50 dst_pipe=000001ABBDDFD050 src=000001ABBDC7F3B0 dst=000001ABBDC7F9B0 same=0 src_w=256 dst_w=16 src_heap=4 dst_heap=4 src_off=2048 dst_off=0 src_sub=2048 dst_sub=0 (experimental)
+D3D12 SQ2: transition res=000001ABBDDFDD50 before=0x0 after=0x800 flags=1 (experimental)
+D3D12 SQ2: transition res=000001ABBDDFD050 before=0x0 after=0x400 flags=1 (experimental)
+D3D12 SQ2: copybuf submit=12884901891 width=16 (experimental)
+D3D12 SQ2: copybuf16 submit=12884901891 width=16 dst=000001ABBDDFD050 src=000001ABBDDFDD50 (experimental)
+D3D12 SQ2: res copysrc null (experimental)
+D3D12 SQ2: res copydst null (experimental)
+D3D12 SQ2: copycaller map-write submit=12884901891 staging=000001ABBDDFF8B0 res=000001ABBDDFD870 width=16 (experimental)
+D3D12 SQ2: copyinfo submit=12884901891 width=16 src_pipe=000001ABBDDFF8B0 dst_pipe=000001ABBDDFD870 src=000001ABBDC7F3B0 dst=000001ABBDC7D2B0 same=0 src_w=256 dst_w=16 src_heap=4 dst_heap=4 src_off=2560 dst_off=0 src_sub=2560 dst_sub=0 (experimental)
+D3D12 SQ2: transition res=000001ABBDDFF8B0 before=0x0 after=0x800 flags=1 (experimental)
+D3D12 SQ2: transition res=000001ABBDDFD870 before=0x0 after=0x400 flags=1 (experimental)
+D3D12 SQ2: copybuf submit=12884901891 width=16 (experimental)
+D3D12 SQ2: copybuf16 submit=12884901891 width=16 dst=000001ABBDDFD870 src=000001ABBDDFF8B0 (experimental)
+D3D12 SQ2: res copysrc null (experimental)
+D3D12 SQ2: res copydst null (experimental)
+D3D12 SQ2: copycaller map-write submit=12884901891 staging=000001ABBDDFFBF0 res=000001ABBDDFEEF0 width=16 (experimental)
+D3D12 SQ2: copyinfo submit=12884901891 width=16 src_pipe=000001ABBDDFFBF0 dst_pipe=000001ABBDDFEEF0 src=000001ABBDC7F3B0 dst=000001ABBDC7E7B0 same=0 src_w=256 dst_w=16 src_heap=4 dst_heap=4 src_off=3072 dst_off=0 src_sub=3072 dst_sub=0 (experimental)
+D3D12 SQ2: transition res=000001ABBDDFFBF0 before=0x0 after=0x800 flags=1 (experimental)
+D3D12 SQ2: transition res=000001ABBDDFEEF0 before=0x0 after=0x400 flags=1 (experimental)
+D3D12 SQ2: copybuf submit=12884901891 width=16 (experimental)
+D3D12 SQ2: copybuf16 submit=12884901891 width=16 dst=000001ABBDDFEEF0 src=000001ABBDDFFBF0 (experimental)
+D3D12 SQ2: res copysrc null (experimental)
+D3D12 SQ2: res copydst null (experimental)
+D3D12 SQ2: copycaller map-write submit=12884901891 staging=000001ABBDDFF3D0 res=000001ABBDDFF230 width=16 (experimental)
+D3D12 SQ2: copyinfo submit=12884901891 width=16 src_pipe=000001ABBDDFF3D0 dst_pipe=000001ABBDDFF230 src=000001ABBDC7F3B0 dst=000001ABBDC7D5B0 same=0 src_w=256 dst_w=16 src_heap=4 dst_heap=4 src_off=3584 dst_off=0 src_sub=3584 dst_sub=0 (experimental)
+D3D12 SQ2: transition res=000001ABBDDFF3D0 before=0x0 after=0x800 flags=1 (experimental)
+D3D12 SQ2: transition res=000001ABBDDFF230 before=0x0 after=0x400 flags=1 (experimental)
+D3D12 SQ2: copybuf submit=12884901891 width=16 (experimental)
+D3D12 SQ2: copybuf16 submit=12884901891 width=16 dst=000001ABBDDFF230 src=000001ABBDDFF3D0 (experimental)
+D3D12 SQ2: res copysrc null (experimental)
+D3D12 SQ2: res copydst null (experimental)
+D3D12 SQ2: copycaller map-write submit=12884901891 staging=000001ABBDDFE1F0 res=000001ABBDDFF710 width=16 (experimental)
+D3D12 SQ2: copyinfo submit=12884901891 width=16 src_pipe=000001ABBDDFE1F0 dst_pipe=000001ABBDDFF710 src=000001ABBDC7F3B0 dst=000001ABBDC7D8B0 same=0 src_w=256 dst_w=16 src_heap=4 dst_heap=4 src_off=4096 dst_off=0 src_sub=4096 dst_sub=0 (experimental)
+D3D12 SQ2: transition res=000001ABBDDFE1F0 before=0x0 after=0x800 flags=1 (experimental)
+D3D12 SQ2: transition res=000001ABBDDFF710 before=0x0 after=0x400 flags=1 (experimental)
+D3D12 SQ2: copybuf submit=12884901891 width=16 (experimental)
+D3D12 SQ2: copybuf16 submit=12884901891 width=16 dst=000001ABBDDFF710 src=000001ABBDDFE1F0 (experimental)
+D3D12 SQ2: res copysrc null (experimental)
+D3D12 SQ2: res copydst null (experimental)
+D3D12 SQ2: flush submit=12884901891 (experimental)
+D3D12 SQ2: end_batch enter (experimental)
+D3D12 SQ2: submit 12884901891 Execute removed=0x0 (experimental)
+D3D12 SQ2: copycaller map-read submit=12884901892 res=000001ABBDDFF710 staging=000001ABBDDFF090 width=16 (experimental)
+D3D12 SQ2: copyinfo submit=12884901892 width=16 src_pipe=000001ABBDDFF710 dst_pipe=000001ABBDDFF090 src=000001ABBDC7D8B0 dst=000001ABBDC7F3B0 same=0 src_w=16 dst_w=256 src_heap=4 dst_heap=4 src_off=0 dst_off=4608 src_sub=0 dst_sub=4608 (experimental)
+D3D12 SQ2: transition res=000001ABBDDFF710 before=0x0 after=0x800 flags=1 (experimental)
+D3D12 SQ2: transition res=000001ABBDDFF090 before=0x0 after=0x400 flags=1 (experimental)
+D3D12 SQ2: copybuf submit=12884901892 width=16 (experimental)
+D3D12 SQ2: copybuf16 submit=12884901892 width=16 dst=000001ABBDDFF090 src=000001ABBDDFF710 (experimental)
+D3D12 SQ2: res copysrc null (experimental)
+D3D12 SQ2: res copydst null (experimental)
+D3D12 SQ2: flush submit=12884901892 (experimental)
+D3D12 SQ2: end_batch enter (experimental)
+D3D12 SQ2: submit 12884901892 Execute removed=0x0 (experimental)
+core 4.3 ctx: 2
+VENDOR = Microsoft Corporation
+RENDERER = D3D12 (Qualcomm(R) Adreno(TM) 680 GPU)
+VERSION = 4.3 (Core Profile) Mesa 26.3.0 (git-0a6fa60abb)
+GLSL = 4.30
+  glGetError(bind ARRAY_BUFFER) = 0x0
+  glGetError(bufferdata ARRAY_BUFFER) = 0x0
+  glGetError(getbuffersubdata ARRAY_BUFFER #1) = 0x0
+  ARRAY_BUFFER read #1 match=True got=[00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f]
+  glGetError(getbuffersubdata ARRAY_BUFFER #2) = 0x0
+  ARRAY_BUFFER read #2 match=True got=[00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f]
+  glGetError(getbuffersubdata ARRAY_BUFFER #3) = 0x0
+  ARRAY_BUFFER read #3 match=True got=[00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f]
+  glGetError(buffersubdata ARRAY_BUFFER) = 0x0
+  glGetError(getbuffersubdata-after-subdata ARRAY_BUFFER) = 0x0
+  ARRAY_BUFFER read-after-write match=True what=[00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f]
+  glGetError(unmap ARRAY_BUFFER) = 0x0
+  ARRAY_BUFFER map-read match=True what=[00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f]
+  glGetError(bind UNIFORM_BUFFER) = 0x0
+  glGetError(bufferdata UNIFORM_BUFFER) = 0x0
+  glGetError(getbuffersubdata UNIFORM_BUFFER #1) = 0x0
+  UNIFORM_BUFFER read #1 match=True got=[00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f]
+  glGetError(getbuffersubdata UNIFORM_BUFFER #2) = 0x0
+  UNIFORM_BUFFER read #2 match=True got=[00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f]
+  glGetError(getbuffersubdata UNIFORM_BUFFER #3) = 0x0
+  UNIFORM_BUFFER read #3 match=True got=[00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f]
+  glGetError(buffersubdata UNIFORM_BUFFER) = 0x0
+  glGetError(getbuffersubdata-after-subdata UNIFORM_BUFFER) = 0x0
+  UNIFORM_BUFFER read-after-write match=True what=[00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f]
+  glGetError(unmap UNIFORM_BUFFER) = 0x0
+  UNIFORM_BUFFER map-read match=True what=[00 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f]
+RESULT: PASS (fails=0)

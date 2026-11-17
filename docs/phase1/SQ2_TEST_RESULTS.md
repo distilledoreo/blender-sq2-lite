@@ -541,10 +541,36 @@ November 13 2025 update (the section read covers the
 security-driven bump with no graphics fix notes, so it is
 unlikely to change this failure; if installed at all, treat it
 as cheap to try, not as the expected fix.
-3. Mesa report prepared: docs/phase1/MESA_D3D12_SQ2_ISSUE.md
+2b. Windows Update check on the SQ2 (authority, not the
+support page): a driver-class search returns exactly one
+pending driver update, 'AudioProcessingObject Driver Update
+(1.0.4.55794)'. No display/Adreno driver update is offered, so
+27.20.2160.0000 is not delivered to this model and there was
+nothing to install and no run-1 retest to do. The support-page
+27.20.2160 entry belongs to the Surface Pro X (Wi-Fi)
+configuration, which matches this outcome.
+2c. Probe copy marker: the staging-copy path WAS exercised. The
+probe log has 10 `copybuf` submits, all width 16, all
+`Execute removed=0x0`. Re-run with D3D12_SQ2_CONTROL=1 prints
+the direction: 8 map-write uploads (src_w=256 -> dst_w=16) and,
+critically, 2 map-READ copies of exactly the failing shape
+(src_w=16 -> dst_w=256, dst suballoc 512 and 4608), both 0x0.
+So read-back through the staging-copy path succeeds on the
+Adreno in isolation. The probe extension steps (SSBO base bind,
+frame-flush) were therefore not needed. Log:
+sq2_readback_probe_control_out.txt.
+3. Mesa report corrected and ready: docs/phase1/MESA_D3D12_SQ2_ISSUE.md
 (environment, failing submit contents, copyinfo values, the
 114 passing mirror uploads, WARP comparison, debug-layer and
 DRED unavailability, read-back probe result, and the explicit
-question about a driver-agnostic workaround). NOT FILED — no
-gitlab.freedesktop.org credentials or glab on this machine;
-needs the user's account to open the issue.
+question about a driver-agnostic workaround). Corrections
+applied: 'probable' not confirmed; WARP passed the failing
+submit but drew no frame (timeout during shader compile); the
+debug-layer E_INVALIDARG also occurs on WARP, so it is not
+Adreno-specific; heap=4 is D3D12_HEAP_TYPE_CUSTOM for every
+Mesa resource and distinguishes nothing; staging read-back is
+now shown to succeed (2c). NOT FILED — needs the user's
+gitlab.freedesktop.org account.
+Decision per the agreed rule: driver update not offered (2b)
+and probe does not reproduce (2c) -> pause the Windows route
+until the Mesa d3d12 maintainers reply.
