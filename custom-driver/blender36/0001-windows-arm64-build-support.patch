@@ -1,0 +1,60 @@
+--- a/build_files/cmake/platform/platform_win32.cmake
++++ b/build_files/cmake/platform/platform_win32.cmake
+@@ -184,6 +184,12 @@
+   string(APPEND CMAKE_CXX_FLAGS " /permissive-")
+   # Two-phase name lookup does not place nicely with OpenMP yet, so disable for now
+   string(APPEND CMAKE_CXX_FLAGS " /Zc:twoPhase-")
++
++  # Windows on ARM: sse2neon needs the standards-conforming preprocessor.
++  if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
++    string(APPEND CMAKE_CXX_FLAGS " /Zc:preprocessor")
++    string(APPEND CMAKE_C_FLAGS " /Zc:preprocessor")
++  endif()
+ endif()
+ 
+ if(WITH_WINDOWS_SCCACHE AND CMAKE_VS_MSBUILD_COMMAND)
+@@ -255,7 +261,11 @@
+ string(APPEND CMAKE_STATIC_LINKER_FLAGS " /ignore:4221")
+ 
+ if(CMAKE_CL_64)
+-  string(PREPEND PLATFORM_LINKFLAGS "/MACHINE:X64 ")
++  if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
++    string(PREPEND PLATFORM_LINKFLAGS "/MACHINE:ARM64 ")
++  else()
++    string(PREPEND PLATFORM_LINKFLAGS "/MACHINE:X64 ")
++  endif()
+ else()
+   string(PREPEND PLATFORM_LINKFLAGS "/MACHINE:IX86 /LARGEADDRESSAWARE ")
+ endif()
+@@ -264,7 +274,11 @@
+   # Setup 64bit and 64bit windows systems
+   if(CMAKE_CL_64)
+     message(STATUS "64 bit compiler detected.")
+-    set(LIBDIR_BASE "windows_x64")
++    if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
++      set(LIBDIR_BASE "windows_arm64")
++    else()
++      set(LIBDIR_BASE "windows_x64")
++    endif()
+   else()
+     message(FATAL_ERROR "32 bit compiler detected, blender no longer provides pre-build libraries for 32 bit windows, please set the LIBDIR cmake variable to your own library folder")
+   endif()
+@@ -563,9 +577,15 @@
+   if(NOT BOOST_VERSION)
+     message(FATAL_ERROR "Unable to determine Boost version")
+   endif()
+-  set(BOOST_POSTFIX "vc142-mt-x64-${BOOST_VERSION}")
+-  set(BOOST_DEBUG_POSTFIX "vc142-mt-gyd-x64-${BOOST_VERSION}")
+-  set(BOOST_PREFIX "")
++  if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
++    set(BOOST_POSTFIX "vc143-mt-a64-${BOOST_VERSION}")
++    set(BOOST_DEBUG_POSTFIX "vc143-mt-gyd-a64-${BOOST_VERSION}")
++    set(BOOST_PREFIX "")
++  else()
++    set(BOOST_POSTFIX "vc142-mt-x64-${BOOST_VERSION}")
++    set(BOOST_DEBUG_POSTFIX "vc142-mt-gyd-x64-${BOOST_VERSION}")
++    set(BOOST_PREFIX "")
++  endif()
+ endif()
+ 
+ if(WITH_BOOST)

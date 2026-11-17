@@ -151,3 +151,45 @@ and saves genuine 3.6 files. So 3.6 scenes can be worked on now; only the
   (shadow/render properties added in 4.2+) and video sequencer data were not
   tested.
 - Rendering quality after the AgX→Filmic change was not compared.
+
+## 5. Port plan: lite first, full is additive
+
+Decision: build a **lite** ARM64 3.6 first (`WITH_CYCLES/USD/ALEMBIC/OIDN/FFMPEG/
+OPENVDB/OPENSUBDIV` off), then add modules. This is a prefix, not a detour: the
+whole Windows-ARM64 delta in Blender's build system is four hunks in one file,
+shared by both builds.
+
+`custom-driver/blender36/0001-windows-arm64-build-support.patch` (against
+`build_files/cmake/platform/platform_win32.cmake`, verified to apply as 4
+hunks):
+
+1. `/Zc:preprocessor` for both C and C++ when `CMAKE_SYSTEM_PROCESSOR` is
+   `ARM64` — sse2neon does not compile without it (same as upstream 4.2).
+2. `/MACHINE:ARM64` instead of `/MACHINE:X64`.
+3. `LIBDIR_BASE windows_arm64` instead of `windows_x64`.
+4. Boost suffix `vc143-mt-a64-<ver>` instead of `vc142-mt-x64-<ver>`.
+
+Full (Cycles, USD, Alembic, OIDN, FFmpeg) differs only by CMake options and by
+extra dependency directories; the four hunks above are unchanged, plus
+`WITH_SSE2NEON` already handled by `BLI_simd.h`.
+
+### Dependency routes
+
+- **A (chosen for lite): 4.2 arm64 lib set + injected Python 3.10.**
+  `lib-windows_arm64` exists only from `blender-v4.2-release` on. 3.6 expects
+  `${LIBDIR}/python/310/{bin,include,libs,lib/site-packages}`, and 3.6 pins
+  Python 3.10, so ARM64 CPython 3.10.11 (nuget `pythonarm64`, laid out as
+  `python/310/`) is injected into `lib/windows_arm64/`. Keeps 3.6's Python code
+  untouched; the risk moves to newer OIIO/OpenEXR/TBB headers.
+- **B (only if A's API drift is too wide): build 3.6-vintage deps for arm64.**
+  Port `build_files/build_environment` (has `linux/` and `windows/`, no arm64
+  configuration). More dep work, less 3.6 code churn.
+
+### Still to do
+
+1. CI workflow on `windows-11-arm`: clone v3.6.23, add `lib/windows_arm64`
+   (4.2 branch), overlay `python/310`, apply the patch, configure with the
+   `Visual Studio 17 2022` generator + `-A ARM64`, build, upload artifact.
+2. Iterate on the first real compile error per round (expected: GHOST Win32,
+   `intern/atomic`, OIIO/USD call sites, Python bindings).
+3. Add modules back (Cycles first) once lite links.
