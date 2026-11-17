@@ -71,6 +71,13 @@ jobs:
           Copy-Item "$t\libs\*" "$dst\libs\" -Recurse -Force
           & "$dst\bin\python.exe" -c "import sys; print('python', sys.version, sys.platform)"
           Write-Host "python310.lib present: $(Test-Path "$dst\libs\python310.lib")"
+          # audaspace's Python bindings include numpy headers, and 3.6 looks for the
+          # pre-2.0 layout numpy/core/include, so pin numpy 1.26.
+          & "$dst\bin\python.exe" -m ensurepip --upgrade 2>&1 | Select-Object -Last 2
+          & "$dst\bin\python.exe" -m pip install --no-warn-script-location --disable-pip-version-check --target "$dst\lib\site-packages" "numpy==1.26.4" 2>&1 | Select-Object -Last 3
+          $np = "$dst\lib\site-packages\numpy\core\include\numpy\ndarrayobject.h"
+          Write-Host "numpy headers present: $(Test-Path $np)"
+          if (-not (Test-Path $np)) { throw "numpy headers missing at $np" }
 
       - name: Apply Windows-ARM64 patches
         shell: pwsh
