@@ -1,0 +1,35 @@
+--- a/source/creator/CMakeLists.txt
++++ b/source/creator/CMakeLists.txt
+@@ -887,15 +887,26 @@
+     )
+   endif()
+ 
+-  windows_install_shared_manifest(
+-    FILES ${LIBDIR}/fftw3/lib/libfftw3-3.dll
+-    ALL
+-  )
+-  if(EXISTS ${LIBDIR}/fftw3/lib/libfftw3f-3.dll)
++  # 4.1 fftw libs need to be installed, in 4.2 fftw got turned into a static lib
++  # and the files below no longer exist (same guard as upstream 4.2).
++  if(EXISTS ${LIBDIR}/fftw3/lib/fftw3.dll)
+     windows_install_shared_manifest(
+-      FILES ${LIBDIR}/fftw3/lib/libfftw3f-3.dll
++      FILES
++        ${LIBDIR}/fftw3/lib/fftw3.dll
++        ${LIBDIR}/fftw3/lib/fftw3f.dll
+       ALL
+     )
++  elseif(EXISTS ${LIBDIR}/fftw3/lib/libfftw3-3.dll)
++    windows_install_shared_manifest(
++      FILES ${LIBDIR}/fftw3/lib/libfftw3-3.dll
++      ALL
++    )
++    if(EXISTS ${LIBDIR}/fftw3/lib/libfftw3f-3.dll)
++      windows_install_shared_manifest(
++        FILES ${LIBDIR}/fftw3/lib/libfftw3f-3.dll
++        ALL
++      )
++    endif()
+   endif()
+   if(MSVC_ASAN)
+     # The ASAN DLL's can be found in the same folder as the compiler,

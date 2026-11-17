@@ -180,6 +180,55 @@ jobs:
           # system Python, so this is only about Blender's own resources.
           cmake --install C:\b\build
           if ($LASTEXITCODE -ne 0) { Write-Host "install reported $LASTEXITCODE (non-fatal), staging build\bin as-is" }
+
+          # blender.exe declares a side-by-side dependency on the `blender.shared`
+          # assembly, so the folder needs its manifest or the exe dies with
+          # "side-by-side configuration is incorrect". Install writes it last;
+          # regenerate it from what actually landed if install stopped early.
+          $sharedManifest = "C:\b\build\bin\blender.shared\blender.shared.manifest"
+          if ((Test-Path "C:\b\build\bin\blender.shared") -and -not (Test-Path $sharedManifest)) {
+            $files = @(Get-ChildItem "C:\b\build\bin\blender.shared" -File -Filter *.dll)
+            if ($files.Count -gt 0) {
+              $entries = ($files | ForEach-Object { '    <file name="' + $_.Name + '"/>' }) -join "`n"
+              $xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' + "`n" +
+                     '<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">' + "`n" +
+                     '    <assemblyIdentity type="win32" name="blender.shared" version="1.0.0.0" />' + "`n" +
+                     $entries + "`n" +
+                     '</assembly>' + "`n"
+              Set-Content -Path $sharedManifest -Value $xml -Encoding utf8
+              Write-Host "generated blender.shared.manifest ($($files.Count) DLLs)"
+            }
+          }
+
+          # 3.6's install rules guard each dependency on the file names of its own
+          # era (e.g. OpenColorIO_2_2.dll), so some DLLs the exe imports are not
+          # installed from the 4.2 arm64 set. Ask the exe what it needs and fill
+          # in whatever install left out.
+          $deps = cmd /c "`"$env:GITHUB_WORKSPACE\custom-driver\blender36\ci_stage_arm64.bat`" C:\b"
+          $names = @($deps | ForEach-Object { if ($_ -match '^\s+(\S+\.dll)\s*$') { $Matches[1] } } | Sort-Object -Unique)
+          Write-Host "blender.exe imports $($names.Count) DLLs"
+          $bin = "C:\b\build\bin"
+          $libIndex = @{}
+          Get-ChildItem C:\b\lib\windows_arm64 -Recurse -File -Include *.dll | ForEach-Object {
+            $key = $_.Name.ToLower()
+            if (-not $libIndex.ContainsKey($key)) { $libIndex[$key] = $_.FullName }
+          }
+          $present = @{}
+          Get-ChildItem $bin -Recurse -File -Include *.dll | ForEach-Object { $present[$_.Name.ToLower()] = $true }
+          $unresolved = @()
+          foreach ($n in $names) {
+            $key = $n.ToLower()
+            if ($present.ContainsKey($key)) { continue }
+            if ($libIndex.ContainsKey($key)) {
+              Copy-Item $libIndex[$key] (Join-Path $bin $n) -Force
+              Write-Host "staged $n"
+            }
+            else {
+              $unresolved += $n
+            }
+          }
+          Write-Host "not in the dependency tree (system DLLs expected): $($unresolved -join ', ')"
+
           Get-ChildItem C:\b\build\bin | Select-Object Name, Length | Format-Table -AutoSize
           & C:\b\build\bin\blender.exe --version
           if ($LASTEXITCODE -ne 0) { throw "blender.exe --version failed on the ARM64 runner" }
