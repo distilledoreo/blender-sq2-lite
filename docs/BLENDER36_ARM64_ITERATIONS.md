@@ -39,10 +39,14 @@ Setup per run: clone Blender `v3.6.23` → clone `lib-windows_arm64`
 
 | 19 | 44186006385 | — **every step succeeded**, artifact `blender36-lite-arm64` uploaded (267 MB unpacked). Running it here: `--version` exits 0, `Blender 3.6.23`, `/MACHINE:ARM64`, and the tree converts a 4.5 scene through the bridge. But `3.6/python` and `3.6/scripts/addons` were missing, so any Python initialisation died with `ModuleNotFoundError: No module named 'encodings'` and Blender could not enable its own add-ons | two packaging gaps, not compile gaps: `WITH_PYTHON_INSTALL=OFF` means no bundled Python at all, and 3.6's source repo contains no `scripts/addons` (the release process clones `blender-addons` there; `make_update.py` does it in `external_scripts_update`). The injected CPython also used the nuget layout (`bin/Lib`, loose DLLs), while 3.6's install rules read `python/310/lib` as the stdlib and `python/310/DLLs` | workflow: clone `blender-addons` at `v3.6.23` with the same 3-retry backoff as the other clones; `-DWITH_PYTHON_INSTALL=ON -DWITH_PYTHON_INSTALL_NUMPY=OFF -DWITH_DRACO=OFF` (`WITH_DRACO` was silently disabled without Python); the injection step now writes the 3.6 lib layout (`lib` = stdlib, `DLLs` = DLLs, `bin` = exe + runtime DLLs); the smoke test now imports `encodings`, `bpy` and `io_scene_fbx` and requires `3.6/python/{lib/encodings,DLLs}` and `3.6/scripts/addons/io_scene_fbx` to exist. Both paths rehearsed locally on the r19 tree: with add-ons `PYOK 3.10.11 3.6.23 FBX format` exit 0, without them exit 13 |
 
+| 20 | 44192487368 | — **every step succeeded**; artifact `blender36-lite-arm64` (335 MB unpacked) contains `3.6/python/{bin,DLLs,lib}`, `3.6/scripts/addons` with 104 add-ons, and the in-run smoke test printed `PYOK 3.10.11 3.6.23 FBX format` | the only change was packaging: Python install on, 3.6's Python layout, `blender-addons` clone, and the import-based smoke test | downloaded and verified here: `--version` exits 0, `pycheck.py` exits 0, and the bridge converted `work/test45.blend` (4.5.92) to `work/test45_r20.v36.blend`, which reopens as `SCENE_ENGINE BLENDER_EEVEE`, `VIEW_TRANSFORM Filmic`, all Principled values (Transmission 0.6, Subsurface 0.2, Specular 0.7, Sheen 0.5, Clearcoat 0.8) and the geometry-nodes modifier intact, with no add-on errors |
+
 Progress markers: run 7 reached `[1746/4757]` objects before the GHOST error,
 run 8 reached `[2029/4757]`, run 10 reached `[2432/4757]`, run 11 reached
 `[3429/4757]`, run 12 reached `[3449/4757]`, run 13 reached `[3506/4757]`,
-run 14 reached `[3913/4757]`, run 16 completed `[4757/4757]` plus the link.
+run 14 reached `[3913/4757]`, run 16 completed `[4757/4757]` plus the link,
+and runs 19 and 20 delivered a tree that runs (`artifacts/r20`: 335 MB, with
+Python and the add-ons).
 
 Reusable helpers:
 

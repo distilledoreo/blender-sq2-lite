@@ -12,8 +12,8 @@ the build, 4 lists what is still unverified.
 
 Measured with:
 - Blender 4.5.16 LTS, ARM64 native (`blender-4.5.16-windows-arm64/`)
-- Blender 3.6.23 **ARM64 native**, built by CI (artifact `blender36-lite-arm64`,
-  unpacked as `artifacts/r19/`)
+- Blender 3.6.23 **ARM64 native**, built by CI (artifact `blender36-lite-arm64`
+  from run 44192487368, unpacked as `artifacts/r20/`)
 - Blender 3.6.23 x64 official (`blender-3.6.23-windows-x64/`), under Windows
   x64 emulation on the SQ2, for comparison
 - source tree `blender-blender-v3.6-release/` (v3.6.23)
@@ -79,15 +79,15 @@ Behaviour:
 
 ### Verified on the native ARM64 build
 
-`work/test45.blend` (4.5.92) copied to `work/test45_arm64.blend`, opened with
-the ARM64 3.6 and `SQ2_AUTO_SAVE=1`:
+`work/test45.blend` (4.5.92) copied to `work/test45_r20.blend`, opened with the
+ARM64 3.6 from round 20 and `SQ2_AUTO_SAVE=1`:
 
 ```
 SQ2-BRIDGE: active (this build 3.6.23)
 SQ2-BRIDGE: file version 4.5.92 is newer than this build 3.6.23
 SQ2-BRIDGE: view transform AgX -> Filmic (scene 'Scene', recovered from file)
 SQ2-BRIDGE: no fixups needed (materials, objects and node types mapped natively)
-SQ2-BRIDGE: wrote .../work/test45_arm64.v36.blend (2 report lines)
+SQ2-BRIDGE: wrote .../work/test45_r20.v36.blend (2 report lines)
 ```
 
 `tools/blender36/inspect_blend.py` on the written file, in the same ARM64
@@ -100,13 +100,15 @@ the same result the x64 build produced, now with no x64 emulation involved.
 ## 3. The ARM64 3.6 build
 
 `.github/workflows/blender36-arm64.yml` builds it on the `windows-11-arm`
-runner, and `.github/workflows` run **44186006385** (round 19) completed every
-step: source clone, 4.2 `lib-windows_arm64` fetch, ARM64 CPython 3.10.11
-injection, patch application, configure, `[4757/4757]` build, link, PE check
-(`0xAA64`), `cmake --install`, runtime staging, and an artifact upload.
+runner. Run **44186006385** (round 19) got through every build step — source
+clone, 4.2 `lib-windows_arm64` fetch, ARM64 CPython 3.10.11 injection, patch
+application, configure, `[4757/4757]` build, link, PE check (`0xAA64`),
+`cmake --install`, runtime staging — but its tree had no bundled Python and no
+`scripts/addons`. Run **44192487368** (round 20) fixed the packaging and
+uploaded the artifact now in use: `blender36-lite-arm64`, 335 MB unpacked,
+with `3.6/python/{bin,DLLs,lib}` and 104 add-ons.
 
-The artifact (`blender36-lite-arm64`, 267 MB unpacked) was downloaded to
-`artifacts/r19/` and run on this machine:
+That artifact was downloaded to `artifacts/r20/` and run on this machine:
 
 ```
 Blender 3.6.23
