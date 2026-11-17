@@ -1,16 +1,22 @@
-# Blender 3.6 on the SQ2: 4.5 → 3.6 conversion, and the ARM64 build question
+# Blender 3.6 on the SQ2: 4.5 → 3.6 conversion, and the ARM64 build
 
 Two separate things were asked for: an **ARM64 build of Blender 3.6**, and a
 **bridge that uses the ARM64 Blender 4.5 build to convert newer files** into
-something 3.6 can open. The bridge is implemented and measured. The ARM64
-build of 3.6 is a porting project, blocked on missing dependencies — details
-in the last section; the assistant did **not** produce an ARM64 3.6 binary.
+something 3.6 can open.
+
+Both now exist and are measured. The ARM64 3.6 build is a *lite* build (no
+Cycles/USD/Alembic/OIDN/FFmpeg/OpenVDB/OpenSubdiv/Collada) and the bridge was
+re-run end to end on it: a 4.5 scene opened natively, was repaired, and was
+written as a genuine 3.6 file. Sections 1–2 are the conversion behaviour, 3 is
+the build, 4 lists what is still unverified.
 
 Measured with:
 - Blender 4.5.16 LTS, ARM64 native (`blender-4.5.16-windows-arm64/`)
-- Blender 3.6.23 x64 official (`blender-3.6.23-windows-x64/`), running under
-  Windows x64 emulation on the SQ2
-- source tree `blender-blender-v3.6-release/` (v3.6.23, release cycle)
+- Blender 3.6.23 **ARM64 native**, built by CI (artifact `blender36-lite-arm64`,
+  unpacked as `artifacts/r19/`)
+- Blender 3.6.23 x64 official (`blender-3.6.23-windows-x64/`), under Windows
+  x64 emulation on the SQ2, for comparison
+- source tree `blender-blender-v3.6-release/` (v3.6.23)
 
 ## 1. What actually happens when 3.6.23 opens a 4.5 file
 
@@ -47,7 +53,7 @@ Two consequences worth recording:
 2. The two real losses (engine, view transform) happen *inside* the load, so
    they have to be repaired after loading — that is what the bridge does.
 
-## 2. The bridge (implemented, tested)
+## 2. The bridge
 
 | file | what it is |
 | --- | --- |
@@ -71,80 +77,115 @@ Behaviour:
 - Every run prints `SQ2-BRIDGE:` lines, so the conversion is visible in logs
   instead of happening silently.
 
-Verified end to end (`work/bridge_save3.log`, `work/reopen36b.log`):
+### Verified on the native ARM64 build
+
+`work/test45.blend` (4.5.92) copied to `work/test45_arm64.blend`, opened with
+the ARM64 3.6 and `SQ2_AUTO_SAVE=1`:
 
 ```
+SQ2-BRIDGE: active (this build 3.6.23)
 SQ2-BRIDGE: file version 4.5.92 is newer than this build 3.6.23
 SQ2-BRIDGE: view transform AgX -> Filmic (scene 'Scene', recovered from file)
-SQ2-BRIDGE: wrote .../work/test45.v36.blend (2 report lines)
+SQ2-BRIDGE: no fixups needed (materials, objects and node types mapped natively)
+SQ2-BRIDGE: wrote .../work/test45_arm64.v36.blend (2 report lines)
 ```
 
-and the written file is stamped `-v306`, reopens in 3.6 with
-`SCENE_ENGINE BLENDER_EEVEE`, `VIEW_TRANSFORM Filmic`, all five Principled
-values and the geometry-nodes modifier intact, and no "newer binary" warning.
+`tools/blender36/inspect_blend.py` on the written file, in the same ARM64
+build, reports `SCENE_ENGINE BLENDER_EEVEE`, `VIEW_TRANSFORM Filmic`, all five
+Principled values (Transmission 0.6, Subsurface 0.2, Specular 0.7, Sheen 0.5,
+Clearcoat 0.8, IOR 1.45), the emission colour/strength, and the `Sq2GN`
+geometry-nodes modifier with its `GeometryNodeSetPosition` node intact. That is
+the same result the x64 build produced, now with no x64 emulation involved.
 
-## 3. Why there is no ARM64 3.6 build yet
+## 3. The ARM64 3.6 build
 
-Everything below was checked in this tree; the numbers are what the checks
-returned, not estimates.
+`.github/workflows/blender36-arm64.yml` builds it on the `windows-11-arm`
+runner, and `.github/workflows` run **44186006385** (round 19) completed every
+step: source clone, 4.2 `lib-windows_arm64` fetch, ARM64 CPython 3.10.11
+injection, patch application, configure, `[4757/4757]` build, link, PE check
+(`0xAA64`), `cmake --install`, runtime staging, and an artifact upload.
 
-1. **No ARM64 dependencies exist for 3.6.** `blender-blender-v3.6-release/
-   .gitmodules` declares exactly four lib submodules — `lib/linux_x64`,
-   `lib/macos_arm64`, `lib/macos_x64`, `lib/windows_x64` — all with
-   `update = none` and all empty here. There is no `lib/windows_arm64` branch
-   in the v3.6 lib set at all: Blender's Windows-on-ARM dependency set and the
-   `lib-windows_arm64` repo were created for 4.2 (Linaro, merged March 2024),
-   which is why the 5.2 workflow in this repo can do
-   `git submodule update --init lib/windows_arm64` and 3.6 cannot.
-2. **3.6's build system has no Windows ARM64 support.**
-   `grep -rn "arm64\|aarch64" build_files/cmake/platform/platform_win32.cmake
-   platform_win32_msvc.cmake` returns nothing; the only `arm64` in
-   `CMakeLists.txt` is the macOS `CMAKE_OSX_ARCHITECTURES` branch.
-3. **Python 3.10 is pinned.** `FindPythonLibsUnix.cmake` has
-   `_PYTHON_VERSION_SUPPORTED 3.10`. ARM64 CPython 3.10 exists only as the
-   nuget `pythonarm64` build (3.10.11), not as part of any Blender lib set,
-   and 3.6 links `python310.lib` by name.
-4. **The toolchain is not the problem.** A native ARM64 MSVC is installed:
-   `C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\VC\Tools\
-   MSVC\14.51.36231\{Hostarm64,Hostx64}`, with CMake and Ninja under
-   `...\Common7\IDE\CommonExtensions\Microsoft\CMake\`. The source is not
-   hostile to ARM64 either — `BLI_simd.h` already supports SSE2-on-NEON via
-   `WITH_SSE2NEON` (used for Apple Silicon), and Cycles has an
-   `__aarch64__`/`_M_ARM64` path. The gap is dependencies plus the Windows
-   build-system branch.
+The artifact (`blender36-lite-arm64`, 267 MB unpacked) was downloaded to
+`artifacts/r19/` and run on this machine:
 
-### What a port would take
+```
+Blender 3.6.23
+	build date: 2026-11-17
+	build time: 22:32:51
+	build hash: e467db79ca8c
+	build platform: Windows
+	build link flags: /MACHINE:ARM64 ...
+```
 
-1. Backport 4.2's Windows-ARM64 build support: `lib/windows_arm64` in
-   `build_files/cmake/platform/platform_win32.cmake` (arch detection, `arm64`
-   generator/`-A ARM64`, lib path, `WITH_SSE2NEON` for MSVC), plus the
-   `make.bat`/`build_files/utils` pieces.
-2. Assemble a dependency set for arm64 at 3.6-era versions (zlib, OpenEXR,
-   Imath, OpenImageIO, TBB, Boost, Alembic, USD, OpenSubdiv, OIDN, FFmpeg,
-   FreeType, SDL, GLEW, epoxy, Python 3.10 + numpy). Two routes: build them
-   with `build_files/build_environment` (which has `linux/` and `windows/`
-   folders but no arm64 configuration) or start from 4.2–4.5's
-   `lib/windows_arm64` and back-port 3.6's code to the newer APIs (Python
-   3.11 instead of 3.10, OIIO 3.2, USD 24.x).
-3. Iterate the build. Expect a first wave of errors in GHOST's Win32 layer,
-   `intern/atomic`, OIIO/USD call sites, and the Python bindings.
+`blender.exe --version` exits 0, and the import scan (`work/scan_deps.py`)
+resolves every non-`api-ms-win-*`/`ext-ms-*` dependency out of the tree.
 
-Realistic effort: several CI rounds on `windows-11-arm` (the runner this repo
-already uses) and a multi-day timebox, with no guarantee of a fully working
-build. Nothing in that list is blocked on the user, but it is much larger than
-"build it".
+### What it took
 
-### Working alternative available today
+Two ingredients were missing rather than one: 3.6 has no Windows-ARM64 branch
+in its build system and no ARM64 dependency set (the `lib-windows_arm64` repo
+and Blender's Windows-on-ARM support were created for 4.2), and its Python
+pin is 3.10, which only exists for ARM64 as the nuget `pythonarm64` build. The
+route taken is the 4.2 arm64 dependency set plus an injected CPython 3.10.11.
 
-The official 3.6.23 x64 build runs on this machine under x64 emulation — it
-produced every result in section 1 — and with the bridge it opens 4.5 files
-and saves genuine 3.6 files. So 3.6 scenes can be worked on now; only the
-"native ARM64" property is missing until the port above is done.
+`custom-driver/blender36/` holds the eleven patches; each one is the smallest
+change that fixes a real compile/install error and, where upstream 4.2 already
+solved the same problem, is modelled on it:
+
+| patch | what it fixes |
+| --- | --- |
+| `0001` | Windows-ARM64 build support in `platform_win32.cmake`: `/Zc:preprocessor`, `/MACHINE:ARM64`, `LIBDIR_BASE windows_arm64`, `vc143-mt-a64` Boost suffix |
+| `0002` | GHOST Wintab `PRINTF` varargs with the conforming preprocessor |
+| `0003` | LZO `_M_ARM64` arch test |
+| `0004` | `RNA_warning(format, ...)` format-only calls (needs `_MSVC_TRADITIONAL` split) |
+| `0005` | `BLI_cpu_brand_string()` / SSE4.1 detection call x86-only `__cpuid` |
+| `0006` | ARM64 stack walk (`Pc`/`Fp`/`Sp`, `IMAGE_FILE_MACHINE_ARM64`) |
+| `0007` | `CD_FAKE_*` layer ids OR-ed into an enum (C5287 under `/WX`) |
+| `0008` | `BM_ALL` mask cast to `int` |
+| `0009` | ARM64 OIIO needs the separate `imath` include dir (same hunk as 4.2) |
+| `0010` | 4.2 ships FFTW static, so `libfftw3-3.dll` never exists |
+| `0011` | 4.2 names gmp `gmp-10.dll`, not `libgmp-10.dll` |
+
+Staging is `custom-driver/blender36/stage_runtime.py`: it walks `blender.exe`'s
+import graph transitively, copies anything missing out of
+`lib/windows_arm64`, skips `api-ms-win-*`/`ext-ms-*` (operating system), and
+exits non-zero if a real DLL is unresolved — which is what kept
+`avcodec-60.dll`'s `swresample-4.dll` and OIIO's
+`boost_thread-vc143-mt-a64-1_82.dll` from being silently dropped.
+
+Round-by-round history, with the exact error text of each failure, is in
+`docs/BLENDER36_ARM64_ITERATIONS.md`.
+
+### Using it
+
+1. Download the `blender36-lite-arm64` artifact from the workflow run and
+   unpack it somewhere permanent, e.g. `C:\Blender36ARM64`.
+2. `python tools/blender36/install_bridge.py C:\Blender36ARM64`
+3. `set BLENDER36_HOME=C:\Blender36ARM64` and launch through
+   `tools\blender36\blender36.cmd scene.blend`, or open files directly in
+   `blender.exe` (the bridge is loaded from `3.6/scripts/startup` either way).
+
+### What the lite set leaves out
+
+`WITH_CYCLES/USD/ALEMBIC/OPENIMAGEDENOISE/FFMPEG/OPENVDB/OPENSUBDIV/COLLADA/
+OPENCOLLADA/POTRACE/BOOST/HYDRA/XR_OPENXR=OFF`. Cycles renders, USD/Alembic
+import-export, FFmpeg video output, OpenVDB volumes, OpenSubdiv, Collada and
+the Hydra/MaterialX viewport integrations are therefore absent; EEVEE,
+Workbench, modelling, materials, geometry nodes and Python scripting are
+present. Adding them back is a CMake-option change plus whatever dependency
+version drift shows up — the ARM64 build-system delta itself is already in.
 
 ## 4. Not verified
 
-- No ARM64 3.6 binary exists, so nothing about ARM64-native 3.6 behaviour is
-  measured.
+- The GUI was not driven on the SQ2: the build was exercised in background mode
+  (`--version`, `--python`, file open/save). Viewport behaviour on the Adreno
+  GPU is untested for this build.
+- The lite set means nothing Cycles/USD/FFmpeg/OpenVDB-related is measured.
+- **numpy is not in the tree.** The injected CPython 3.10.11 has no numpy
+  binary for win_arm64 (no wheel exists), so only numpy's C headers are
+  present, which is enough to compile the `aud` module but not to `import
+  numpy` at runtime. Scripts that need numpy will fail; this is independent of
+  the 4.5 → 3.6 conversion.
 - The conversion table covers one synthetic scene: materials with Principled
   v2, emission, one geometry-nodes modifier, one light, one camera. Libraries,
   linked assets, drivers, simulation caches, EEVEE Next-specific settings
@@ -152,44 +193,25 @@ and saves genuine 3.6 files. So 3.6 scenes can be worked on now; only the
   tested.
 - Rendering quality after the AgX→Filmic change was not compared.
 
-## 5. Port plan: lite first, full is additive
+## 5. History of the port
 
-Decision: build a **lite** ARM64 3.6 first (`WITH_CYCLES/USD/ALEMBIC/OIDN/FFMPEG/
-OPENVDB/OPENSUBDIV` off), then add modules. This is a prefix, not a detour: the
-whole Windows-ARM64 delta in Blender's build system is four hunks in one file,
-shared by both builds.
+Kept because the constraints are easy to re-hit: 3.6's `.gitmodules` has no
+`lib/windows_arm64` (only linux_x64, macos_arm64, macos_x64, windows_x64, all
+`update = none`), `platform_win32.cmake` had no `arm64`/`aarch64` mention,
+`FindPythonLibsUnix.cmake` pins `_PYTHON_VERSION_SUPPORTED 3.10`, and
+`make.bat`'s Visual Studio generator cannot find the arm64 runner's VS
+2026 — hence Ninja plus `vcvarsall arm64`.
 
-`custom-driver/blender36/0001-windows-arm64-build-support.patch` (against
-`build_files/cmake/platform/platform_win32.cmake`, verified to apply as 4
-hunks):
+Two further packaging facts, found only after the build linked, are worth
+recording because they make a *working* install differ from a *linking* one:
 
-1. `/Zc:preprocessor` for both C and C++ when `CMAKE_SYSTEM_PROCESSOR` is
-   `ARM64` — sse2neon does not compile without it (same as upstream 4.2).
-2. `/MACHINE:ARM64` instead of `/MACHINE:X64`.
-3. `LIBDIR_BASE windows_arm64` instead of `windows_x64`.
-4. Boost suffix `vc143-mt-a64-<ver>` instead of `vc142-mt-x64-<ver>`.
-
-Full (Cycles, USD, Alembic, OIDN, FFmpeg) differs only by CMake options and by
-extra dependency directories; the four hunks above are unchanged, plus
-`WITH_SSE2NEON` already handled by `BLI_simd.h`.
-
-### Dependency routes
-
-- **A (chosen for lite): 4.2 arm64 lib set + injected Python 3.10.**
-  `lib-windows_arm64` exists only from `blender-v4.2-release` on. 3.6 expects
-  `${LIBDIR}/python/310/{bin,include,libs,lib/site-packages}`, and 3.6 pins
-  Python 3.10, so ARM64 CPython 3.10.11 (nuget `pythonarm64`, laid out as
-  `python/310/`) is injected into `lib/windows_arm64/`. Keeps 3.6's Python code
-  untouched; the risk moves to newer OIIO/OpenEXR/TBB headers.
-- **B (only if A's API drift is too wide): build 3.6-vintage deps for arm64.**
-  Port `build_files/build_environment` (has `linux/` and `windows/`, no arm64
-  configuration). More dep work, less 3.6 code churn.
-
-### Still to do
-
-1. CI workflow on `windows-11-arm`: clone v3.6.23, add `lib/windows_arm64`
-   (4.2 branch), overlay `python/310`, apply the patch, configure with the
-   `Visual Studio 17 2022` generator + `-A ARM64`, build, upload artifact.
-2. Iterate on the first real compile error per round (expected: GHOST Win32,
-   `intern/atomic`, OIIO/USD call sites, Python bindings).
-3. Add modules back (Cycles first) once lite links.
+- `scripts/addons` is not in the 3.6 source repo. The release process clones
+  `blender-addons` into it (`make_update.py`, `external_scripts_update`), so a
+  plain clone builds a Blender that cannot enable a single add-on, FBX/OBJ/glTF
+  included. The workflow now clones `blender-addons` at `v3.6.23` and the
+  smoke test imports `io_scene_fbx`.
+- `WITH_PYTHON_INSTALL=OFF` (the first lite configuration) produces a tree with
+  no `3.6/python` at all: the exe starts, prints `--version`, and then dies on
+  `ModuleNotFoundError: No module named 'encodings'` as soon as Python
+  initialises — which is to say, for the bridge, immediately. The workflow now
+  installs Python and checks that `encodings` and `bpy` import.
