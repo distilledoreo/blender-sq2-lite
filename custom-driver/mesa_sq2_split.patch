@@ -1,33 +1,69 @@
 diff --git a/src/gallium/drivers/d3d12/d3d12_context.h b/src/gallium/drivers/d3d12/d3d12_context.h
 --- a/src/gallium/drivers/d3d12/d3d12_context.h
 +++ b/src/gallium/drivers/d3d12/d3d12_context.h
-@@ -308,7 +308,9 @@ d3d12_current_batch(struct d3d12_context *ctx)
+@@ -305,7 +305,14 @@ d3d12_current_batch(struct d3d12_context *ctx)
  {
     assert(ctx->current_batch_idx < ARRAY_SIZE(ctx->batches));
     return ctx->batches + ctx->current_batch_idx;
  }
-+
 +extern bool sq2_split_after_compute;
++struct d3d12_resource;
++bool sq2_opt_split(void);
++bool sq2_opt_readback(void);
++bool sq2_opt_control(void);
++bool sq2_opt_dred(void);
++void sq2_print_resource(struct d3d12_context *ctx, const char *tag, struct d3d12_resource *res);
  
  #define d3d12_foreach_submitted_batch(ctx, batch) \
     unsigned oldest = (ctx->current_batch_idx + 1) % ARRAY_SIZE(ctx->batches); \
 diff --git a/src/gallium/drivers/d3d12/d3d12_batch.cpp b/src/gallium/drivers/d3d12/d3d12_batch.cpp
 --- a/src/gallium/drivers/d3d12/d3d12_batch.cpp
 +++ b/src/gallium/drivers/d3d12/d3d12_batch.cpp
-@@ -299,6 +299,8 @@ d3d12_start_batch(struct d3d12_context *ctx, struct d3d12_batch *batch)
+@@ -296,6 +296,43 @@ d3d12_start_batch(struct d3d12_context *ctx, struct d3d12_batch *batch)
     batch->submit_id = ++ctx->submit_id;
  }
- 
 +bool sq2_split_after_compute = false;
 +
++static bool
++sq2_opt_cached(const char *name, int *cache)
++{
++   if (*cache < 0)
++      *cache = os_get_option(name) ? 1 : 0;
++   return *cache != 0;
++}
++
++bool
++sq2_opt_split(void)
++{
++   static int cache = -1;
++   return sq2_opt_cached("D3D12_SQ2_SPLIT", &cache);
++}
++
++bool
++sq2_opt_readback(void)
++{
++   static int cache = -1;
++   return sq2_opt_cached("D3D12_SQ2_READBACK", &cache);
++}
++
++bool
++sq2_opt_control(void)
++{
++   static int cache = -1;
++   return sq2_opt_cached("D3D12_SQ2_CONTROL", &cache);
++}
++
++bool
++sq2_opt_dred(void)
++{
++   static int cache = -1;
++   return sq2_opt_cached("D3D12_SQ2_DRED", &cache);
++}
+ 
  void
  d3d12_end_batch(struct d3d12_context *ctx, struct d3d12_batch *batch)
  {
-diff --git a/src/gallium/drivers/d3d12/d3d12_batch.cpp b/src/gallium/drivers/d3d12/d3d12_batch.cpp
---- a/src/gallium/drivers/d3d12/d3d12_batch.cpp
-+++ b/src/gallium/drivers/d3d12/d3d12_batch.cpp
-@@ -323,6 +323,8 @@ d3d12_end_batch(struct d3d12_context *ctx, struct d3d12_batch *batch)
- 
+@@ -323,5 +323,7 @@ d3d12_end_batch(struct d3d12_context *ctx, struct d3d12_batch *batch)
     bool has_state_fixup = d3d12_context_state_resolve_submission(ctx, batch);
  
 +   if (sq2_split_after_compute)
@@ -38,7 +74,7 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_batch.cpp b/src/gallium/drivers/d3d
 diff --git a/src/gallium/drivers/d3d12/d3d12_draw.cpp b/src/gallium/drivers/d3d12/d3d12_draw.cpp
 --- a/src/gallium/drivers/d3d12/d3d12_draw.cpp
 +++ b/src/gallium/drivers/d3d12/d3d12_draw.cpp
-@@ -1255,10 +1255,21 @@ d3d12_draw_vbo(struct pipe_context *pctx,
+@@ -1255,9 +1255,47 @@ d3d12_draw_vbo(struct pipe_context *pctx,
     for (int i = 0; i < ctx->fb.nr_cbufs; ++i) {
        if (ctx->fb_cbufs[i]) {
           struct d3d12_surface *surface = ctx->fb_cbufs[i];
@@ -47,10 +83,37 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_draw.cpp b/src/gallium/drivers/d3d1
     }
  
 +   {
++      bool sq2_detail = sq2_opt_control() || sq2_split_after_compute;
 +      bool sq2_fan = !indirect && ((dinfo->mode == 6 && draws[0].count == 4 && !dinfo->index_size) || (dinfo->mode == 4 && draws[0].count == 6 && dinfo->index_size));
-+      if (sq2_fan) {
++      if (sq2_fan && sq2_detail) {
 +         struct pipe_vertex_buffer *sq2_vb0 = ctx->num_vbs > 0 ? &ctx->vbs[0] : NULL;
-+         fprintf(stderr, "D3D12 SQ2: fandraw submit=%llu mode=%d count=%u idx=%d pso=%p ib=%p nvbs=%u vb0=%p stride=%u (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id, (int)dinfo->mode, draws[0].count, dinfo->index_size > 0, (void*)ctx->current_gfx_pso, (void*)index_buffer, ctx->num_vbs, sq2_vb0 ? (void*)sq2_vb0->buffer : NULL, sq2_vb0 ? sq2_vb0->stride : 0);
++         fprintf(stderr, "D3D12 SQ2: fandraw submit=%llu mode=%d count=%u idx=%d primup=%d pso=%p ib=%p nvbs=%u vb0=%p stride=%u (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id, (int)dinfo->mode, draws[0].count, dinfo->index_size > 0, (index_buffer && index_buffer != dinfo->index.resource), (void*)ctx->current_gfx_pso, (void*)index_buffer, ctx->num_vbs, sq2_vb0 ? (void*)sq2_vb0->buffer : NULL, sq2_vb0 ? sq2_vb0->stride : 0);
++         for (unsigned sq2_i = 0; sq2_i < ctx->num_vbs; ++sq2_i) {
++            if (ctx->vbs[sq2_i].buffer)
++               sq2_print_resource(ctx, "fanvb", d3d12_resource(ctx->vbs[sq2_i].buffer));
++         }
++         if (index_buffer)
++            sq2_print_resource(ctx, "fanib", d3d12_resource(index_buffer));
++         for (unsigned sq2_st = 0; sq2_st < MESA_SHADER_STAGES; ++sq2_st) {
++            for (unsigned sq2_sl = 0; sq2_sl < ctx->num_sampler_views[sq2_st]; ++sq2_sl) {
++               if (ctx->sampler_views[sq2_st][sq2_sl] && ctx->sampler_views[sq2_st][sq2_sl]->texture)
++                  sq2_print_resource(ctx, "fansrv", d3d12_resource(ctx->sampler_views[sq2_st][sq2_sl]->texture));
++            }
++            for (unsigned sq2_sl = 0; sq2_sl < PIPE_MAX_SHADER_BUFFERS; ++sq2_sl) {
++               if (ctx->ssbo_views[sq2_st][sq2_sl].buffer)
++                  sq2_print_resource(ctx, "fanssbo", d3d12_resource(ctx->ssbo_views[sq2_st][sq2_sl].buffer));
++            }
++            for (unsigned sq2_sl = 0; sq2_sl < PIPE_MAX_CONSTANT_BUFFERS; ++sq2_sl) {
++               if (ctx->cbufs[sq2_st][sq2_sl].buffer)
++                  sq2_print_resource(ctx, "fancb", d3d12_resource(ctx->cbufs[sq2_st][sq2_sl].buffer));
++            }
++         }
++         for (int sq2_i = 0; sq2_i < ctx->fb.nr_cbufs; ++sq2_i) {
++            if (ctx->fb_cbufs[sq2_i] && ctx->fb_cbufs[sq2_i]->base.texture)
++               sq2_print_resource(ctx, "fanrt", d3d12_resource(ctx->fb_cbufs[sq2_i]->base.texture));
++         }
++         if (ctx->fb_zsbuf && ctx->fb_zsbuf->base.texture)
++            sq2_print_resource(ctx, "fands", d3d12_resource(ctx->fb_zsbuf->base.texture));
 +      }
 +      if (sq2_split_after_compute) {
 +         fprintf(stderr, "D3D12 SQ2: split after draw submit=%llu (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id);
@@ -59,30 +122,24 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_draw.cpp b/src/gallium/drivers/d3d1
 +   }
     pipe_resource_reference(&patched_indirect.buffer, NULL);
  }
- 
 diff --git a/src/gallium/drivers/d3d12/d3d12_resource.cpp b/src/gallium/drivers/d3d12/d3d12_resource.cpp
 --- a/src/gallium/drivers/d3d12/d3d12_resource.cpp
 +++ b/src/gallium/drivers/d3d12/d3d12_resource.cpp
-@@ -1296,5 +1296,10 @@ copy_texture_region(struct d3d12_context *ctx,
+@@ -1296,3 +1296,7 @@ copy_texture_region(struct d3d12_context *ctx,
     fprintf(stderr, "D3D12 SQ2: copytex submit=%llu (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id);
     ctx->has_commands = true;
-+
 +   if (sq2_split_after_compute) {
 +      fprintf(stderr, "D3D12 SQ2: split after copytex submit=%llu (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id);
 +      d3d12_flush_cmdlist_and_wait(ctx);
 +   }
  }
- 
- static void
-diff --git a/src/gallium/drivers/d3d12/d3d12_resource.cpp b/src/gallium/drivers/d3d12/d3d12_resource.cpp
---- a/src/gallium/drivers/d3d12/d3d12_resource.cpp
-+++ b/src/gallium/drivers/d3d12/d3d12_resource.cpp
-@@ -1493,3 +1493,11 @@ transfer_buf_to_buf(struct d3d12_context *ctx,
+@@ -1493,3 +1493,12 @@ transfer_buf_to_buf(struct d3d12_context *ctx,
     fprintf(stderr, "D3D12 SQ2: copybuf submit=%llu width=%llu (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id, (unsigned long long)width);
     ctx->has_commands = true;
-+
-+   if (width == 16 || sq2_split_after_compute) {
++   if (sq2_opt_control() || sq2_split_after_compute) {
 +      fprintf(stderr, "D3D12 SQ2: copybuf16 submit=%llu width=%llu dst=%p src=%p (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id, (unsigned long long)width, (void*)dst, (void*)src);
++      sq2_print_resource(ctx, "copysrc", src);
++      sq2_print_resource(ctx, "copydst", dst);
 +   }
 +   if (sq2_split_after_compute) {
 +      fprintf(stderr, "D3D12 SQ2: split after copybuf submit=%llu (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id);
@@ -94,7 +151,7 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_resource_state.cpp b/src/gallium/dr
 +++ b/src/gallium/drivers/d3d12/d3d12_resource_state.cpp
 @@ -505,4 +505,8 @@ d3d12_transition_resource_state(struct d3d12_context *ctx,
     d3d12_context_state_table_entry *state_entry = find_or_create_state_entry(ctx, res->bo);
-+   if (sq2_split_after_compute) {
++   if (sq2_split_after_compute || sq2_opt_control()) {
 +      D3D12_RESOURCE_STATES sq2_before = (state_entry->batch_end.homogenous && state_entry->batch_end.num_subresources > 0) ? state_entry->batch_end.subresource_states[0].state : (D3D12_RESOURCE_STATES)0;
 +      fprintf(stderr, "D3D12 SQ2: transition res=%p before=0x%x after=0x%x flags=%d (experimental)\n", (void*)res, (unsigned)sq2_before, (unsigned)state, (int)flags);
 +   }
@@ -108,7 +165,7 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_context_graphics.cpp b/src/gallium/
        pipe_sampler_view_reference(&old_view, views[i]);
  
        if (views[i]) {
-+         if (views[i]->texture && (views[i]->format != views[i]->texture->format || views[i]->target != views[i]->texture->target))
++         if (views[i]->texture && (views[i]->format != views[i]->texture->format || views[i]->target != views[i]->texture->target)
 +            fprintf(stderr, "D3D12 SQ2: viewbind fmt=%d->%d tgt=%d->%d (experimental)\n", (int)views[i]->texture->format, (int)views[i]->format, (int)views[i]->texture->target, (int)views[i]->target);
           dxil_wrap_sampler_state &wss = ctx->tex_wrap_states[shader_type][start_slot + i];
           dxil_texture_swizzle_state &swizzle_state = ctx->tex_swizzle_state[shader_type][i];
@@ -116,34 +173,36 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_context_graphics.cpp b/src/gallium/
 diff --git a/src/gallium/drivers/d3d12/d3d12_draw.cpp b/src/gallium/drivers/d3d12/d3d12_draw.cpp
 --- a/src/gallium/drivers/d3d12/d3d12_draw.cpp
 +++ b/src/gallium/drivers/d3d12/d3d12_draw.cpp
-@@ -1395,9 +1395,31 @@ d3d12_launch_grid(struct pipe_context *pctx, const struct pipe_grid_info *info
+@@ -1395,9 +1395,33 @@ d3d12_launch_grid(struct pipe_context *pctx, const struct pipe_grid_info *info
     {
        static unsigned sq2_dispatch_count = 0;
        fprintf(stderr, "D3D12 SQ2: compute dispatch #%u grid=%ux%ux%u indirect=%d removed=0x%lx (experimental)\n",
                ++sq2_dispatch_count, info->grid[0], info->grid[1], info->grid[2], indirect != nullptr,
                (long)d3d12_screen(ctx->base.screen)->dev->GetDeviceRemovedReason());
     }
-+
-+   sq2_split_after_compute = true;
-+   for (unsigned sq2_bi = 0; sq2_bi < ctx->num_ssbo_views[MESA_SHADER_COMPUTE]; ++sq2_bi) {
-+      struct pipe_resource *sq2_bres = ctx->ssbo_views[MESA_SHADER_COMPUTE][sq2_bi].buffer;
-+      if (sq2_bres)
-+         fprintf(stderr, "D3D12 SQ2: compute ssbo[%u] res=%p size=%u (experimental)\n", sq2_bi, (void*)sq2_bres, (unsigned)sq2_bres->width0);
-+   }
-+   if (ctx->num_ssbo_views[MESA_SHADER_COMPUTE] > 0 && ctx->ssbo_views[MESA_SHADER_COMPUTE][0].buffer) {
-+      struct pipe_resource *sq2_rb = ctx->ssbo_views[MESA_SHADER_COMPUTE][0].buffer;
-+      unsigned sq2_n = sq2_rb->width0 < 16 ? (unsigned)sq2_rb->width0 : 16;
-+      struct pipe_box sq2_box;
-+      sq2_box.x = 0; sq2_box.y = 0; sq2_box.z = 0; sq2_box.width = (int)sq2_n; sq2_box.height = 1; sq2_box.depth = 1;
-+      struct pipe_transfer *sq2_t = NULL;
-+      pctx->buffer_map(pctx, sq2_rb, 0, PIPE_MAP_READ, &sq2_box, &sq2_t);
-+      if (sq2_t && ((struct d3d12_transfer *)sq2_t)->data) {
-+         uint32_t *sq2_u = (uint32_t *)((struct d3d12_transfer *)sq2_t)->data;
-+         fprintf(stderr, "D3D12 SQ2: compute readback %u %u %u %u (experimental)\n", sq2_u[0], sq2_u[1], sq2_u[2], sq2_u[3]);
-+      } else
-+         fprintf(stderr, "D3D12 SQ2: compute readback MAP_FAILED (experimental)\n");
-+      if (sq2_t)
-+         pctx->buffer_unmap(pctx, sq2_t);
++   if (sq2_opt_split())
++      sq2_split_after_compute = true;
++   if (sq2_opt_readback()) {
++      for (unsigned sq2_bi = 0; sq2_bi < ctx->num_ssbo_views[MESA_SHADER_COMPUTE]; ++sq2_bi) {
++         struct pipe_resource *sq2_bres = ctx->ssbo_views[MESA_SHADER_COMPUTE][sq2_bi].buffer;
++         if (sq2_bres)
++            fprintf(stderr, "D3D12 SQ2: compute ssbo[%u] res=%p size=%u (experimental)\n", sq2_bi, (void*)sq2_bres, (unsigned)sq2_bres->width0);
++      }
++      if (ctx->num_ssbo_views[MESA_SHADER_COMPUTE] > 0 && ctx->ssbo_views[MESA_SHADER_COMPUTE][0].buffer) {
++         struct pipe_resource *sq2_rb = ctx->ssbo_views[MESA_SHADER_COMPUTE][0].buffer;
++         unsigned sq2_n = sq2_rb->width0 < 16 ? (unsigned)sq2_rb->width0 : 16;
++         struct pipe_box sq2_box;
++         sq2_box.x = 0; sq2_box.y = 0; sq2_box.z = 0; sq2_box.width = (int)sq2_n; sq2_box.height = 1; sq2_box.depth = 1;
++         struct pipe_transfer *sq2_t = NULL;
++         pctx->buffer_map(pctx, sq2_rb, 0, PIPE_MAP_READ, &sq2_box, &sq2_t);
++         if (sq2_t && ((struct d3d12_transfer *)sq2_t)->data) {
++            uint32_t *sq2_u = (uint32_t *)((struct d3d12_transfer *)sq2_t)->data;
++            fprintf(stderr, "D3D12 SQ2: compute readback %u %u %u %u (experimental)\n", sq2_u[0], sq2_u[1], sq2_u[2], sq2_u[3]);
++         } else
++            fprintf(stderr, "D3D12 SQ2: compute readback MAP_FAILED (experimental)\n");
++         if (sq2_t)
++            pctx->buffer_unmap(pctx, sq2_t);
++      }
 +   }
  
     ctx->state_dirty &= D3D12_DIRTY_GFX_MASK;
@@ -151,10 +210,9 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_draw.cpp b/src/gallium/drivers/d3d1
 diff --git a/src/mesa/main/textureview.c b/src/mesa/main/textureview.c
 --- a/src/mesa/main/textureview.c
 +++ b/src/mesa/main/textureview.c
-@@ -853,3 +853,5 @@ _mesa_TextureView(GLuint texture, GLenum target, GLuint origtexture,
+@@ -853,3 +853,4 @@ _mesa_TextureView(GLuint texture, GLenum target, GLuint origtexture,
     texture_view(ctx, origTexObj, texObj, target, internalformat, minlevel,
                  numlevels, minlayer, numlayers, false);
-+
 +   fprintf(stderr, "D3D12 SQ2: glTextureView done err=%d (experimental)\n", ctx->ErrorValue);
  }
 diff --git a/src/gallium/drivers/d3d12/d3d12_batch.cpp b/src/gallium/drivers/d3d12/d3d12_batch.cpp
@@ -167,7 +225,7 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_batch.cpp b/src/gallium/drivers/d3d
              sq2_iq->Release();
           }
        }
-+      if (sq2_exec_removed != S_OK) {
++      if (sq2_exec_removed != S_OK && sq2_opt_dred()) {
 +         ID3D12DeviceRemovedExtendedData *sq2_dred = nullptr;
 +         HRESULT sq2_dred_hr = screen->dev->QueryInterface(IID_PPV_ARGS(&sq2_dred));
 +         fprintf(stderr, "D3D12 SQ2: dred QI hr=0x%lx (experimental)\n", (long)sq2_dred_hr);
@@ -176,7 +234,7 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_batch.cpp b/src/gallium/drivers/d3d
 +            HRESULT sq2_bc_hr = sq2_dred->GetAutoBreadcrumbsOutput(&sq2_bcout);
 +            fprintf(stderr, "D3D12 SQ2: dred breadcrumbs hr=0x%lx (experimental)\n", (long)sq2_bc_hr);
 +            if (SUCCEEDED(sq2_bc_hr)) {
-+               const D3D12_DRED_AUTO_BREADCRUMB_NODE *sq2_node = sq2_bcout.pHeadAutoBreadcrumbNode;
++               const D3D12_AUTO_BREADCRUMB_NODE *sq2_node = sq2_bcout.pHeadAutoBreadcrumbNode;
 +               while (sq2_node) {
 +                  uint32_t sq2_last = (sq2_node->BreadcrumbCount && sq2_node->pLastBreadcrumbValue) ? *sq2_node->pLastBreadcrumbValue : 0;
 +                  fprintf(stderr, "D3D12 SQ2: dred node %s count=%u last=%u (experimental)\n", sq2_node->pCommandListDebugNameA ? sq2_node->pCommandListDebugNameA : "?", sq2_node->BreadcrumbCount, sq2_last);
@@ -196,3 +254,60 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_batch.cpp b/src/gallium/drivers/d3d
     }
     else
        batch->has_errors = true;
+diff --git a/src/gallium/drivers/d3d12/d3d12_resource_state.cpp b/src/gallium/drivers/d3d12/d3d12_resource_state.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_resource_state.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_resource_state.cpp
+@@ -497,7 +497,36 @@ d3d12_transition_resource_state(struct d3d12_context *ctx,
+ }
++static D3D12_RESOURCE_STATES
++sq2_peek_state(struct d3d12_context *ctx, struct d3d12_bo *bo)
++{
++   d3d12_context_state_table_entry *sq2_e = NULL;
++   if (ctx->id != D3D12_CONTEXT_NO_ID) {
++      unsigned sq2_bit = 1 << ctx->id;
++      if (bo->local_context_state_mask & sq2_bit)
++         sq2_e = &bo->local_context_states[ctx->id];
++   }
++   if (!sq2_e)
++      sq2_e = (d3d12_context_state_table_entry *)_mesa_hash_table_u64_search(ctx->bo_state_table, bo->unique_id);
++   if (sq2_e && sq2_e->batch_end.homogenous && sq2_e->batch_end.num_subresources > 0)
++      return sq2_e->batch_end.subresource_states[0].state;
++   return (D3D12_RESOURCE_STATES)0;
++}
++
++void
++sq2_print_resource(struct d3d12_context *ctx, const char *tag, struct d3d12_resource *res)
++{
++   if (!res || !res->bo || !res->bo->res) {
++      fprintf(stderr, "D3D12 SQ2: res %s null (experimental)\n", tag);
++      return;
++   }
++   D3D12_HEAP_PROPERTIES sq2_hp = {};
++   D3D12_HEAP_FLAGS sq2_hf = D3D12_HEAP_FLAG_NONE;
++   res->bo->res->GetHeapProperties(&sq2_hp, &sq2_hf);
++   fprintf(stderr, "D3D12 SQ2: res %s ptr=%p size=%u heap=%d state=0x%x (experimental)\n",
++           tag, (void *)res, (unsigned)res->base.b.width0, (int)sq2_hp.Type, (unsigned)sq2_peek_state(ctx, res->bo));
++}
+ 
+ void
+ d3d12_transition_resource_state(struct d3d12_context *ctx,
+                                 struct d3d12_resource *res,
+                                 D3D12_RESOURCE_STATES state,
+                                 d3d12_transition_flags flags)
+diff --git a/src/gallium/drivers/d3d12/d3d12_resource.cpp b/src/gallium/drivers/d3d12/d3d12_resource.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_resource.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_resource.cpp
+@@ -2002,4 +2002,6 @@ d3d12_transfer_map(struct pipe_context *pctx,
+          if (pres->target == PIPE_BUFFER) {
+             uint64_t src_offset = box->x;
+             uint64_t dst_offset = src_offset % BUFFER_MAP_ALIGNMENT;
++            if (sq2_opt_control() || sq2_split_after_compute)
++               fprintf(stderr, "D3D12 SQ2: copycaller map-read submit=%llu res=%p staging=%p width=%u (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id, (void*)res, (void*)staging_res, (unsigned)box->width);
+             transfer_buf_to_buf(ctx, res, staging_res, src_offset, dst_offset, box->width);
+@@ -2103,4 +2103,6 @@ d3d12_transfer_unmap(struct pipe_context *pctx,
+             if (res->base.b.target == PIPE_BUFFER) {
+                uint64_t dst_offset = trans->base.b.box.x;
+                uint64_t src_offset = dst_offset % BUFFER_MAP_ALIGNMENT;
++               if (sq2_opt_control() || sq2_split_after_compute)
++                  fprintf(stderr, "D3D12 SQ2: copycaller map-write submit=%llu staging=%p res=%p width=%u (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id, (void*)staging_res, (void*)res, (unsigned)ptrans->box.width);
+                transfer_buf_to_buf(ctx, staging_res, res, src_offset, dst_offset, ptrans->box.width);

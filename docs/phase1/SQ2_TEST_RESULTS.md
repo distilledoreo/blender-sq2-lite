@@ -414,3 +414,20 @@ stale trailing context (`static void` vs actual `static size_t`);
 the textureview hunk pointed past its mark and two context lines were
 missing the diff marker space. Both trimmed/fixed; full chain now
 passes `git apply --check` in an isolated LF harness.
+
+Split v2 (unbuilt): closes the audit gaps and the readback interference.
+Four env switches, all default off: D3D12_SQ2_SPLIT (per-command
+flush+fence from the compute batch onward), D3D12_SQ2_READBACK (SSBO
+list + 16-byte map readback in launch_grid), D3D12_SQ2_CONTROL
+(fandraw binding dump + copybuf identity + all transition prints,
+pre- and post-compute, no flushes), D3D12_SQ2_DRED (breadcrumb and
+pagefault reader in the nonzero-removal path). Fandraw dump now names
+PSO, topology, primconvert flag, every VB, the IB, all bound
+sampler/CBV/SSBO views and all render targets, each with heap type
+(via GetHeapProperties) and tracked state. Copybuf print names heap
+and state for src/dst; two caller prints tag map-read vs map-write.
+DRED node type renamed to D3D12_AUTO_BREADCRUMB_NODE (the DRED infix
+was removed in current DirectX-Headers; v1.619) — this was the
+43999498086 compile break. Also fixed: split.patch had CRLF in the
+worktree (other patches are LF); pure-LF full chain now applies rc=0
+in an isolated autocrlf=false harness.
