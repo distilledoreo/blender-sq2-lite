@@ -315,3 +315,25 @@ diff --git a/src/gallium/drivers/d3d12/d3d12_resource.cpp b/src/gallium/drivers/
 +               if (sq2_opt_control() || sq2_split_after_compute)
 +                  fprintf(stderr, "D3D12 SQ2: copycaller map-write submit=%llu staging=%p res=%p width=%u (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id, (void*)staging_res, (void*)res, (unsigned)ptrans->box.width);
                 transfer_buf_to_buf(ctx, staging_res, res, src_offset, dst_offset, ptrans->box.width);
+diff --git a/src/gallium/drivers/d3d12/d3d12_screen.cpp b/src/gallium/drivers/d3d12/d3d12_screen.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_screen.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_screen.cpp
+@@ -903,7 +903,18 @@ create_device(util_dl_library *d3d12_mod, IUnknown *adapter, ID3D12DeviceFactory
+       if (FAILED(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_1_0_GENERIC, IID_PPV_ARGS(&dev))))
+          if (FAILED(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&dev))))
+             debug_printf("D3D12: D3D12CreateDevice failed\n");
+    }
+
++   if (dev && os_get_option("D3D12_SQ2_DRED")) {
++      ID3D12DeviceRemovedExtendedDataSettings *sq2_dred_settings = nullptr;
++      HRESULT sq2_dred_hr = dev->QueryInterface(IID_PPV_ARGS(&sq2_dred_settings));
++      fprintf(stderr, "D3D12 SQ2: dred arm QI hr=0x%lx (experimental)\n", (long)sq2_dred_hr);
++      if (SUCCEEDED(sq2_dred_hr) && sq2_dred_settings) {
++         sq2_dred_settings->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
++         sq2_dred_settings->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
++         fprintf(stderr, "D3D12 SQ2: dred armed (experimental)\n");
++         sq2_dred_settings->Release();
++      }
++   }
+    return dev;
+ }

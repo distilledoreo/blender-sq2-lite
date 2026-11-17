@@ -438,3 +438,20 @@ no stride member — VB identity now reads buffer.resource (or user
 pointer) and stride from the bound D3D12_VERTEX_BUFFER_VIEW; the
 viewbind if was missing a closing paren. DRED rename from the
 previous message stands.
+
+Pre-run confirmations (verified in patch/workflow, not assumed):
+- Force stays on in every run: D3D12_SQ2_FORCE_IMAGES=1 (separate
+switch, applied for patches=instrument) plus the 4.3/430 override
+and --factory-startup, or compute is absent and the old crash returns.
+"Squ2 switches off" in run 1 means the four new D3D12_SQ2_SPLIT /
+READBACK / CONTROL / DRED switches only.
+- DRED is now armed as well as read: the reader alone would find
+nothing, because Mesa has no DRED token (D3D12_DEBUG has no dred
+entry, and debuglayer kills context creation on this device) and
+nothing else enables breadcrumbs. New hunk in create_device QIs
+ID3D12DeviceRemovedExtendedDataSettings and forces breadcrumbs +
+pagefault on, gated on D3D12_SQ2_DRED=1, fail-soft. Run 2 without
+DRED=1 arms nothing.
+- The compute-batch flush+fence is unconditional (instrument patch,
+no env gate), so runs 1 and 2 share it. CONTROL never flushes: all
+three split flushes are gated on the split flag only.
