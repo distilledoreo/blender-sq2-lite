@@ -455,3 +455,35 @@ DRED=1 arms nothing.
 - The compute-batch flush+fence is unconditional (instrument patch,
 no env gate), so runs 1 and 2 share it. CONTROL never flushes: all
 three split flushes are gated on the split flag only.
+
+Split-build device runs (build 44019040707, binary verified new:
+libgallium_wgl.dll 16048128 bytes md5 882a8895 vs old 16047616
+2b815ef5; all markers incl. dred-arm present; CI recompiled
+d3d12_screen.cpp at step 911/1007). All runs: FORCE_IMAGES=1,
+4.3/430 override, --factory-startup. exit=11 every run.
+- Run 1 (no new switches): reproduces. Dispatch #1 healthy,
+submit ...666 FAN(4)+TRIANGLES(6,idx)+copybuf16 -> INVALID_CALL.
+- Run 3 (SPLIT+CONTROL, primary): draw ...666 isolated healthy
+(fixup=0, Execute 0x0). Next submit ...667 = map-read 16-byte copy
+-> INVALID_CALL (fixup=0). Src is the staging buffer used
+pre-compute as a 512-byte map-write upload; dst is fresh staging.
+Control: pre-compute fan draws print identical detail (null
+vb/ib is steady state, also healthy); pre-compute copies also
+print res-null yet execute 0x0, so the null peek is a helper
+blind spot for these buffer types, not the defect.
+- Run 4 (+READBACK): identical failure at ...667. SSBO list:
+three buffers (10240/10240/16384), none is the failing copy's
+src (pointer-compared within-run). Readback MAP_FAILED
+(DEFAULT-heap SSBO not CPU-mappable; no repair transition ran).
+- Run 2 (DRED, last): arming refused (QI 0x80004002 E_NOINTERFACE
+on Adreno); breadcrumbs/pagefault reads 0x887a0004 unsupported.
+DRED is a dead end on this driver.
+Reading: first failing step is the post-compute map-read copy of
+a staging buffer last touched pre-compute, recorded before=COMMON
+(0x0). Src is not a listed SSBO, so the SSBO-state row is
+unproven; the draw is identical to control but the copy has no
+exact pre-compute twin (map-read vs map-write). Remaining
+candidates are both Mesa-side: stale COMMON decay (tracker says
+COMMON, GPU still holds COPY_SOURCE from the pre-compute upload)
+or compute-batch state-table corruption. Either is a
+resource-state defect to patch, not a command defect.
