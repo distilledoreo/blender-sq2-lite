@@ -1,0 +1,89 @@
+diff --git a/src/gallium/drivers/d3d12/d3d12_draw.cpp b/src/gallium/drivers/d3d12/d3d12_draw.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_draw.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_draw.cpp
+@@ -887,6 +887,7 @@ d3d12_draw_vbo(struct pipe_context *pctx,
+    struct d3d12_context *ctx = d3d12_context(pctx);
+    struct d3d12_screen *screen = d3d12_screen(pctx->screen);
+    struct d3d12_batch *batch;
++   fprintf(stderr, "D3D12 SQ2: draw submit=%llu mode=%d count=%u indexed=%d indirect=%d (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id, (int)dinfo->mode, draws[0].count, dinfo->index_size > 0, indirect != nullptr);
+    struct pipe_resource *index_buffer = NULL;
+    unsigned index_offset = 0;
+    enum d3d12_surface_conversion_mode conversion_modes[PIPE_MAX_COLOR_BUFS] = {};
+diff --git a/src/gallium/drivers/d3d12/d3d12_draw.cpp b/src/gallium/drivers/d3d12/d3d12_draw.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_draw.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_draw.cpp
+@@ -1230,5 +1230,6 @@
+    if (indirect) {
+       unsigned draw_count = draw_auto ? 1 : indirect->draw_count;
++      fprintf(stderr, "D3D12 SQ2: indirect submit=%llu draw_count=%u (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id, draw_count);
+       ID3D12CommandSignature *cmd_sig = d3d12_get_cmd_signature(ctx, &cmd_sig_key);
+       ctx->cmdlist->ExecuteIndirect(cmd_sig, draw_count, indirect_arg_buf,
+          indirect_arg_offset, indirect_count_buf, indirect_count_offset);
+diff --git a/src/gallium/drivers/d3d12/d3d12_resource.cpp b/src/gallium/drivers/d3d12/d3d12_resource.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_resource.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_resource.cpp
+@@ -1295,6 +1295,7 @@ copy_texture_region(struct d3d12_context *ctx,
+    d3d12_apply_resource_states(ctx, false);
+    ctx->cmdlist->CopyTextureRegion(&info.dst_loc, info.dst_x, info.dst_y, info.dst_z,
+                                    &info.src_loc, info.src_box);
++   fprintf(stderr, "D3D12 SQ2: copytex submit=%llu (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id);
+    ctx->has_commands = true;
+ }
+ 
+diff --git a/src/gallium/drivers/d3d12/d3d12_resource.cpp b/src/gallium/drivers/d3d12/d3d12_resource.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_resource.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_resource.cpp
+@@ -1489,7 +1489,8 @@ transfer_buf_to_buf(struct d3d12_context *ctx,
+    d3d12_apply_resource_states(ctx, false);
+    ctx->cmdlist->CopyBufferRegion(dst_d3d12, dst_offset,
+                                   src_d3d12, src_offset,
+                                   width);
++   fprintf(stderr, "D3D12 SQ2: copybuf submit=%llu width=%llu (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id, (unsigned long long)width);
+    ctx->has_commands = true;
+ }
+ 
+diff --git a/src/gallium/drivers/d3d12/d3d12_context_common.cpp b/src/gallium/drivers/d3d12/d3d12_context_common.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_context_common.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_context_common.cpp
+@@ -165,7 +165,8 @@ d3d12_flush_cmdlist(struct d3d12_context *ctx)
+ {
+    if (!ctx->has_commands)
+       return false;
+ 
++   fprintf(stderr, "D3D12 SQ2: flush submit=%llu (experimental)\n", (unsigned long long)d3d12_current_batch(ctx)->submit_id);
+    d3d12_end_batch(ctx, d3d12_current_batch(ctx));
+ 
+    ctx->current_batch_idx++;
+diff --git a/src/mesa/main/textureview.c b/src/mesa/main/textureview.c
+--- a/src/mesa/main/textureview.c
++++ b/src/mesa/main/textureview.c
+@@ -42,6 +42,8 @@
+ #include "texstorage.h"
+ #include "textureview.h"
+ #include "stdbool.h"
+ #include "mtypes.h"
++#include <stdio.h>
++
+ #include "api_exec_decl.h"
+ 
+diff --git a/src/mesa/main/textureview.c b/src/mesa/main/textureview.c
+--- a/src/mesa/main/textureview.c
++++ b/src/mesa/main/textureview.c
+@@ -754,6 +754,7 @@ _mesa_TextureView(GLuint texture, GLenum target, GLuint origtexture,
+ 
+    GET_CURRENT_CONTEXT(ctx);
+ 
++   fprintf(stderr, "D3D12 SQ2: glTextureView target=0x%x format=0x%x orig=%u (experimental)\n", target, internalformat, origtexture);
+    if (origtexture == 0) {
+       _mesa_error(ctx, GL_INVALID_VALUE, "glTextureView(origtexture = %u)",
+                   origtexture);
+diff --git a/src/gallium/drivers/d3d12/d3d12_context_graphics.cpp b/src/gallium/drivers/d3d12/d3d12_context_graphics.cpp
+--- a/src/gallium/drivers/d3d12/d3d12_context_graphics.cpp
++++ b/src/gallium/drivers/d3d12/d3d12_context_graphics.cpp
+@@ -931,4 +931,6 @@ d3d12_create_sampler_view(struct pipe_context *pctx,
+    struct d3d12_format_info format_info = d3d12_get_format_info(res->overall_format, state->format, state->target);
++   if (state->format != res->overall_format || state->target != texture->target)
++      fprintf(stderr, "D3D12 SQ2: samplerview mismatch viewfmt=%d resfmt=%d viewtgt=%d restgt=%d (experimental)\n", (int)state->format, (int)res->overall_format, (int)state->target, (int)texture->target);
+    pipe_swizzle swizzle[4] = {
+       format_info.swizzle[sampler_view->base.swizzle_r],
+       format_info.swizzle[sampler_view->base.swizzle_g],

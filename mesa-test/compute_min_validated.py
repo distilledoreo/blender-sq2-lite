@@ -12,7 +12,11 @@ Fixes vs compute_min.py (per assessment):
 - Three SSBOs bound to 0,1,2; shader touches all three.
 """
 import ctypes
+import faulthandler
+import os
 import sys
+
+faulthandler.enable()
 
 mesa_gl = sys.argv[1]
 opengl32 = ctypes.WinDLL(mesa_gl)
@@ -272,6 +276,90 @@ if not st.value:
     sys.exit(5)
 glUseProgram(pr)
 check("use")
+if os.environ.get("SQ2_TRIANGLE_FIRST"):
+    print("triangle-first variant: drawing one triangle...", flush=True)
+    glDrawArrays = proc("glDrawArrays", None, GLenum, GLint, GLsizei)
+    glCreateShader2 = glCreateShader
+    vsrc = (b"#version 420 core\nlayout(location=0) in vec2 p;\n"
+            b"void main(){ gl_Position = vec4(p, 0.0, 1.0); }\n")
+    fsrc = (b"#version 420 core\nout vec4 c;\n"
+            b"void main(){ c = vec4(1.0); }\n")
+    GL_VERTEX = 0x8B31
+    GL_FRAGMENT = 0x8B30
+    GL_ARRAY_BUFFER = 0x8892
+    GL_FLOAT = 0x1406
+    glGenBuffersNV = proc("glGenBuffers", None, GLsizei,
+                           ctypes.POINTER(GLuint))
+    vbo = GLuint(0)
+    glGenBuffersNV(1, ctypes.byref(vbo))
+    check("t-gen")
+    glBindBuffer(GL_ARRAY_BUFFER, vbo.value)
+    check("t-bind")
+    verts = (ctypes.c_float * 6)(-1.0, -1.0, 3.0, -1.0, -1.0, 3.0)
+    glBufferData(GL_ARRAY_BUFFER, GLsizeiptr(24),
+                 ctypes.cast(verts, ctypes.c_void_p), GL_STATIC_DRAW)
+    check("t-data")
+    size = GLint(0)
+    glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE,
+                            ctypes.byref(size))
+    check("t-size")
+    print("tri vbo:", vbo.value, "size:", size.value, flush=True)
+    vs = glCreateShader2(GL_VERTEX)
+    check("t-vs")
+    cs = ctypes.c_char_p(vsrc)
+    cl = GLint(len(vsrc))
+    glShaderSource(vs, 1, ctypes.byref(cs), ctypes.byref(cl))
+    check("t-vssrc")
+    glCompileShader(vs)
+    check("t-vscomp")
+    fs = glCreateShader2(GL_FRAGMENT)
+    check("t-fs")
+    cs = ctypes.c_char_p(fsrc)
+    cl = GLint(len(fsrc))
+    glShaderSource(fs, 1, ctypes.byref(cs), ctypes.byref(cl))
+    check("t-fssrc")
+    glCompileShader(fs)
+    check("t-fscomp")
+    tpr = glCreateProgram()
+    check("t-prog")
+    glAttachShader(tpr, vs)
+    check("t-attvs")
+    glAttachShader(tpr, fs)
+    check("t-attfs")
+    glLinkProgram(tpr)
+    check("t-link")
+    glGetProgramiv(tpr, GL_LINK_STATUS, ctypes.byref(st))
+    print("tri link:", st.value, flush=True)
+    print("tri use...", flush=True)
+    glUseProgram(tpr)
+    check("t-use")
+    print("tri used", flush=True)
+    glEnableVertexAttribArray = proc("glEnableVertexAttribArray", None,
+                                     GLuint)
+    glVertexAttribPointer = proc("glVertexAttribPointer", None, GLuint,
+                                 GLint, GLenum, ctypes.c_ubyte, GLsizei,
+                                 ctypes.c_void_p)
+    glGenVertexArrays = proc("glGenVertexArrays", None, GLsizei,
+                             ctypes.POINTER(GLuint))
+    glBindVertexArray = proc("glBindVertexArray", None, GLuint)
+    vao = GLuint(0)
+    glGenVertexArrays(1, ctypes.byref(vao))
+    check("t-genvao")
+    glBindVertexArray(vao.value)
+    check("t-bindvao")
+    print("tri enable...", flush=True)
+    glEnableVertexAttribArray(GLuint(0))
+    print("tri enabled", flush=True)
+    check("t-enable")
+    glVertexAttribPointer(GLuint(0), 2, GL_FLOAT, 0, 0, None)
+    check("t-ptr")
+    glDrawArrays(0x0004, 0, 3)
+    check("t-draw")
+    glFinish()
+    check("t-finish")
+    glUseProgram(pr)
+    check("t-reuse")
+    print("triangle done", flush=True)
 print("dispatching 1x1x1...", flush=True)
 glDispatchCompute(GLuint(1), GLuint(1), GLuint(1))
 check("dispatch")
