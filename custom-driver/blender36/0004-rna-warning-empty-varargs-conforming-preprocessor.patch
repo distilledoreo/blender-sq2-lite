@@ -1,0 +1,16 @@
+--- a/source/blender/makesrna/RNA_access.h
++++ b/source/blender/makesrna/RNA_access.h
+@@ -764,8 +764,12 @@
+ /* macro which inserts the function name */
+ #if defined __GNUC__
+ #  define RNA_warning(format, args...) _RNA_warning("%s: " format "\n", __func__, ##args)
+-#else
++#elif !defined(_MSVC_TRADITIONAL) || _MSVC_TRADITIONAL
+ #  define RNA_warning(format, ...) _RNA_warning("%s: " format "\n", __FUNCTION__, __VA_ARGS__)
++#else
++/* The conforming preprocessor (/Zc:preprocessor), required for Windows on ARM, no longer
++ * suppresses the trailing comma of an empty `__VA_ARGS__`, so it is pasted to the comma. */
++#  define RNA_warning(format, ...) _RNA_warning("%s: " format "\n", __FUNCTION__, ##__VA_ARGS__)
+ #endif
+ 
+ /** Use to implement the #RNA_warning macro which includes `__func__` suffix. */

@@ -18,9 +18,13 @@ Setup per run: clone Blender `v3.6.23` → clone `lib-windows_arm64`
 | 6 | 44116466381 | `ninja: error: libsndfile-1.lib missing` | arm64 set ships `sndfile.lib`; 3.6 referenced it through the `${LIBSNDFILE_LIBPATH}` alias, so the literal scan missed it | patch hunk 7: `if(EXISTS ...libsndfile-1.lib) else sndfile.lib` |
 | 7 | 44117699207 | `GHOST_SystemWin32.cc: error C2059: syntax error: ')'` ×13 | `WINTAB_PRINTF(x, ...)` expands to `printf(x, __VA_ARGS__)`; calls with a format string only become `printf(x, )`, which `/Zc:preprocessor` (mandatory for sse2neon) rejects | `0002-ghost-wintab-printf-conforming-preprocessor.patch`, same `_MSVC_TRADITIONAL` split upstream 4.2 uses |
 | 8 | 44119916610 | `extern/lzo/minilzo/lzodefs.h: #error FIXME - missing LZO_OS_WIN64 define for CPU architecture` | LZO detects ARM64 only via `__aarch64__`, never `_M_ARM64` | `0003-lzo-arch-arm64-msvc.patch` |
+| 9 | 44127891836 | step *Inject ARM64 Python 3.10*: `numpy sdist not downloaded` | no cp310/win_arm64 numpy wheel exists; `pip download --no-binary=:all:` built metadata for 5 min and left no `.tar.gz` | take the arch-independent `numpy/core/include` from the `win_amd64` wheel instead of an sdist |
+| 10 | 44130007352 | `interface_template_asset_view.cc(184): error C2059: syntax error: ')'` ×7 | `RNA_warning(format, ...)` expands to `_RNA_warning(..., __FUNCTION__, __VA_ARGS__)`; a format-only call leaves `, )`. The traditional MSVC preprocessor drops that comma, `/Zc:preprocessor` (from `0001`) does not. Every other `__VA_ARGS__` macro in the tree either takes a real first argument or is a `VA_NARGS` overload, so `RNA_warning` was the only remaining case (9 call sites). | `0004-rna-warning-empty-varargs-conforming-preprocessor.patch`, `_MSVC_TRADITIONAL` split like `0002`; reproducing locally with MSVC 14.51 gives the identical `error C2059` for the old form and no error for the new one |
 
 Progress markers: run 7 reached `[1746/4757]` objects before the GHOST error,
-run 8 reached `[2029/4757]`.
+run 8 reached `[2029/4757]`, run 10 reached `[2432/4757]` (the last 400 objects
+are the long-tail editors/GPU/python units, so each round now clears fewer
+objects than the number suggests).
 
 Reusable helpers:
 
