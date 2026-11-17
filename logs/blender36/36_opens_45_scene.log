@@ -1,0 +1,49 @@
+TBBmalloc: skip allocation functions replacement in ucrtbase.dll: unknown prologue for function free
+Blender 3.6.23 (hash e467db79ca8c built 2025-06-17 03:22:43)
+Read blend: "C:\Users\disti\Documents\Blender-ARM\work\test45.blend"
+Warning: region type 14 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 15 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 14 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 15 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 14 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 15 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 14 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 15 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 14 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 15 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 14 missing in space type "Image" (id: 6) - removing region
+Warning: region type 15 missing in space type "Image" (id: 6) - removing region
+Warning: region type 14 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 15 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 14 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 15 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 14 missing in space type "Image" (id: 6) - removing region
+Warning: region type 15 missing in space type "Image" (id: 6) - removing region
+Warning: region type 14 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 15 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 14 missing in space type "Image" (id: 6) - removing region
+Warning: region type 15 missing in space type "Image" (id: 6) - removing region
+Warning: region type 14 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 15 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 14 missing in space type "Image" (id: 6) - removing region
+Warning: region type 15 missing in space type "Image" (id: 6) - removing region
+Warning: region type 14 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 15 missing in space type "View3D" (id: 1) - removing region
+Warning: File written by newer Blender binary (405.92), expect loss of data!
+Color management: scene view "AgX" not found, setting default "Standard".
+Error: Engine 'BLENDER_EEVEE_NEXT' not available for scene 'Scene' (an add-on may need to be installed or enabled)
+=== INSPECT C:\Users\disti\Documents\Blender-ARM\work\test45.blend
+RUNNING 3.6.23 (3, 6, 23)
+OBJECTS [('Camera', 'CAMERA'), ('Cube', 'MESH'), ('Sun', 'LIGHT')]
+SCENE_CAMERA Camera
+MATERIAL TestMat use_nodes= True
+  NODE ShaderNodeBsdfPrincipled 'Principled BSDF'  [Base Color=(0.8, 0.25, 0.1, 1.0), Subsurface=0.2, Subsurface Radius=(1.0, 0.2, 0.1), Subsurface Color=(0.8, 0.8, 0.8, 1.0), Subsurface IOR=1.4, Subsurface Anisotropy=0.0, Metallic=0.3, Specular=0.7, Specular Tint=0.0, Roughness=0.35, Anisotropic=0.0, Anisotropic Rotation=0.0, Sheen=0.5, Sheen Tint=0.5, Clearcoat=0.8, Clearcoat Roughness=0.03, IOR=1.45, Transmission=0.6, Transmission Roughness=0.0, Emission=(0.1, 0.9, 0.2, 1.0), Emission Strength=0.9, Alpha=1.0, Normal=(0.0, 0.0, 0.0), Clearcoat Normal=(0.0, 0.0, 0.0), Tangent=(0.0, 0.0, 0.0), Weight=0.0]
+  NODE ShaderNodeOutputMaterial 'Material Output' 
+IMAGES []
+SCENE_ENGINE BLENDER_EEVEE
+VIEW_TRANSFORM Standard
+MODIFIER Cube Sq2GN NODES  group=Sq2GN types=['NodeGroupInput', 'NodeGroupOutput', 'GeometryNodeSetPosition']
+NODEGROUP Sq2GN ['NodeGroupInput', 'NodeGroupOutput', 'GeometryNodeSetPosition']
+=== END
+
+Blender quit

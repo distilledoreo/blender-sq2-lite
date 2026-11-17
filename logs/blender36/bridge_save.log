@@ -1,0 +1,44 @@
+TBBmalloc: skip allocation functions replacement in ucrtbase.dll: unknown prologue for function free
+Blender 3.6.23 (hash e467db79ca8c built 2025-06-17 03:22:43)
+Read blend: "C:\Users\disti\Documents\Blender-ARM\work\test45.blend"
+Warning: region type 14 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 15 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 14 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 15 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 14 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 15 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 14 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 15 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 14 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 15 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 14 missing in space type "Image" (id: 6) - removing region
+Warning: region type 15 missing in space type "Image" (id: 6) - removing region
+Warning: region type 14 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 15 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 14 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 15 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 14 missing in space type "Image" (id: 6) - removing region
+Warning: region type 15 missing in space type "Image" (id: 6) - removing region
+Warning: region type 14 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 15 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 14 missing in space type "Image" (id: 6) - removing region
+Warning: region type 15 missing in space type "Image" (id: 6) - removing region
+Warning: region type 14 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 15 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 14 missing in space type "Image" (id: 6) - removing region
+Warning: region type 15 missing in space type "Image" (id: 6) - removing region
+Warning: region type 14 missing in space type "View3D" (id: 1) - removing region
+Warning: region type 15 missing in space type "View3D" (id: 1) - removing region
+Warning: File written by newer Blender binary (405.92), expect loss of data!
+Color management: scene view "AgX" not found, setting default "Standard".
+Error: Engine 'BLENDER_EEVEE_NEXT' not available for scene 'Scene' (an add-on may need to be installed or enabled)
+SQ2-BRIDGE: active (this build 3.6.23)
+SQ2-BRIDGE: file version 4.5.92 is newer than this build 3.6.23
+SQ2-BRIDGE: view transform AgX -> Filmic (scene 'Scene', recovered from file)
+SQ2-BRIDGE: file version 4.5.92 is newer than this build 3.6.23
+SQ2-BRIDGE: no fixups needed (materials, objects and node types mapped natively)
+Info: Saved "test45.v36.blend"
+SQ2-BRIDGE: wrote C:/Users/disti/Documents/Blender-ARM/work/test45.v36.blend (2 report lines)
+Info: Saved 3.6 copy: C:/Users/disti/Documents/Blender-ARM/work/test45.v36.blend
+
+Blender quit
