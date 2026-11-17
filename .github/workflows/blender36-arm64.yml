@@ -5,12 +5,12 @@ name: blender36-arm64-lite
 # its own, so the 4.2 arm64 libs are used and ARM64 CPython 3.10 is injected at
 # lib/windows_arm64/python/310 in the layout 3.6 expects.
 #
-# Uses the Ninja generator inside a vcvarsall arm64 environment (the same path
-# the 5.2 arm64 build takes); the "Visual Studio 17 2022" generator cannot find
-# a VS instance on this runner.
+# Configure/build run through custom-driver/blender36/ci_*_arm64.bat, which set
+# up vcvarsall arm64 and use the Ninja generator: the "Visual Studio 17 2022"
+# generator cannot find a VS instance on this runner.
 #
-# Iteration log: every round reports the first real failure; see
-# docs/BLENDER36_ARM64.md section 5 for the plan.
+# Iteration log: each round reports the first real failure; plan is in
+# docs/BLENDER36_ARM64.md section 5.
 
 on:
   workflow_dispatch:
@@ -37,10 +37,8 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "ARCH=$env:PROCESSOR_ARCHITECTURE"
-          vswhere -version "[17.0,18.0)" -products * -format json | Out-String | Write-Host
           vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -property installationPath
           cmake --version | Select-Object -First 1
-          cmake --help | Select-String -Pattern "Visual Studio|Ninja" | Select-Object -First 8
           ninja --version
 
       - name: Clone Blender 3.6 source
@@ -72,7 +70,7 @@ jobs:
           Copy-Item "$t\include\*" "$dst\include\" -Recurse -Force
           Copy-Item "$t\libs\*" "$dst\libs\" -Recurse -Force
           & "$dst\bin\python.exe" -c "import sys; print('python', sys.version, sys.platform)"
-          Test-Path "$dst\libs\python310.lib"
+          Write-Host "python310.lib present: $(Test-Path "$dst\libs\python310.lib")"
 
       - name: Apply Windows-ARM64 build-system patch
         shell: pwsh
@@ -83,20 +81,7 @@ jobs:
       - name: Configure (lite, Ninja + arm64 MSVC)
         shell: pwsh
         run: |
-          $bat = @'
-@echo off
-for /f "usebackq delims=" %%i in (`vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -property installationPath`) do set "VSPATH=%%i"
-echo VSPATH=%VSPATH%
-if "%VSPATH%"=="" (echo no VS with ARM64 tools & exit /b 2)
-call "%VSPATH%\VC\Auxiliary\Build\vcvarsall.bat" arm64
-if errorlevel 1 exit /b 3
-echo ---- cl ----
-where cl
-cmake -S C:\b -B C:\b\build -G Ninja -DCMAKE_BUILD_TYPE=Release -DWITH_CYCLES=OFF -DWITH_USD=OFF -DWITH_ALEMBIC=OFF -DWITH_OPENIMAGEDENOISE=OFF -DWITH_FFMPEG=OFF -DWITH_OPENVDB=OFF -DWITH_OPENSUBDIV=OFF -DWITH_COLLADA=OFF -DWITH_POTRACE=OFF -DWITH_BOOST=OFF -DWITH_HYDRA=OFF -DWITH_XR_OPENXR=OFF -DWITH_PYTHON_INSTALL=OFF -DWITH_WINDOWS_FIND_MODULES=OFF
-exit /b %ERRORLEVEL%
-'@
-          Set-Content -Path configure.bat -Value $bat -Encoding ASCII
-          cmd /c configure.bat 2>&1 | Tee-Object -FilePath configure.log
+          cmd /c "$env:GITHUB_WORKSPACE\custom-driver\blender36\ci_configure_arm64.bat" C:\b 2>&1 | Tee-Object -FilePath configure.log
           if ($LASTEXITCODE -ne 0) { Write-Host "=== configure failed ==="; throw "configure failed" }
           Select-String -Path C:\b\build\CMakeCache.txt -Pattern "LIBDIR_BASE|CMAKE_SYSTEM_PROCESSOR:|PYTHON_LIBRARY:|PYTHON_EXECUTABLE:" | ForEach-Object { $_.Line }
 
@@ -113,15 +98,7 @@ exit /b %ERRORLEVEL%
         if: ${{ !inputs.configure_only }}
         shell: pwsh
         run: |
-          $bat = @'
-@echo off
-for /f "usebackq delims=" %%i in (`vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -property installationPath`) do set "VSPATH=%%i"
-call "%VSPATH%\VC\Auxiliary\Build\vcvarsall.bat" arm64
-if errorlevel 1 exit /b 3
-cmake --build C:\b\build
-'@
-          Set-Content -Path build.bat -Value $bat -Encoding ASCII
-          cmd /c build.bat 2>&1 | Tee-Object -FilePath build.log
+          cmd /c "$env:GITHUB_WORKSPACE\custom-driver\blender36\ci_build_arm64.bat" C:\b 2>&1 | Tee-Object -FilePath build.log
           if ($LASTEXITCODE -ne 0) {
             Write-Host "===== first errors ====="
             Select-String -Path build.log -Pattern "error [A-Z]+[0-9]+|fatal error" | Select-Object -First 40 | ForEach-Object { $_.Line }
@@ -136,3 +113,9 @@ cmake --build C:\b\build
           path: build.log
           retention-days: 7
           if-no-files-found: ignore
+
+      - name: Locate blender.exe
+        if: ${{ !inputs.configure_only && success() }}
+        shell: pwsh
+        run: |
+          Get-ChildItem C:\b\build -Recurse -Filter blender.exe | Select-Object FullName, Length
