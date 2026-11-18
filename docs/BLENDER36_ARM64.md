@@ -178,7 +178,7 @@ Round-by-round history, with the exact error text of each failure, is in
 
 ### Using it
 
-1. Download the `blender36-lite-arm64` artifact from the workflow run and
+1. Download the `blender36-full-arm64` artifact from the workflow run and
    unpack it somewhere permanent, e.g. `C:\Blender36ARM64`.
 2. `python tools/blender36/install_bridge.py C:\Blender36ARM64`
 3. `set BLENDER36_HOME=C:\Blender36ARM64` and launch through
