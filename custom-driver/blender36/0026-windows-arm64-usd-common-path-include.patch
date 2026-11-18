@@ -1,0 +1,10 @@
+--- a/source/blender/io/usd/intern/usd_common.cc
++++ b/source/blender/io/usd/intern/usd_common.cc
+@@ -6,6 +6,7 @@
+ #include <pxr/base/plug/registry.h>
+ 
+ #include "BKE_appdir.h"
++#include "BLI_path_util.h"
+ 
+ namespace blender::io::usd {
+ 

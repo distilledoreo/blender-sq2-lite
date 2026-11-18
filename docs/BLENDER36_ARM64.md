@@ -132,7 +132,7 @@ and Blender's Windows-on-ARM support were created for 4.2), and its Python
 pin is 3.10, which only exists for ARM64 as the nuget `pythonarm64` build. The
 route taken is the 4.2 arm64 dependency set plus an injected CPython 3.10.11.
 
-`custom-driver/blender36/` holds the twenty-five patches; each one is the
+`custom-driver/blender36/` holds the twenty-six patches; each one is the
 smallest change that fixes a real compile/install error and, where upstream 4.2
 already solved the same problem, is modelled on it:
 
@@ -163,6 +163,7 @@ already solved the same problem, is modelled on it:
 | `0023` | USD 24.05's token macros do not expand under MSVC 14.5x's conforming preprocessor, so `bf_usd` builds with `/Zc:preprocessor-` |
 | `0024` | The arm64 boost set is dynamic but has no `boost_python310`, so the `BOOST_ALL_DYN_LINK` detection is keyed on `boost_locale` and the Python library trigger gets its own variable |
 | `0025` | `bf_usd` opts out of USD's Python support (`PXR_PYTHON_SUPPORT_ENABLED`), because the prebuilt USD would otherwise need the Python 3.11 `boost_python` this tree cannot link |
+| `0026` | `usd_common.cc`'s plugin-path block (only compiled without USD Python support) uses `SEP_STR` without including `BLI_path_util.h`, which its test twin does include |
 
 Staging is `custom-driver/blender36/stage_runtime.py`: it walks `blender.exe`'s
 import graph transitively, copies anything missing out of
