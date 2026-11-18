@@ -132,9 +132,9 @@ and Blender's Windows-on-ARM support were created for 4.2), and its Python
 pin is 3.10, which only exists for ARM64 as the nuget `pythonarm64` build. The
 route taken is the 4.2 arm64 dependency set plus an injected CPython 3.10.11.
 
-`custom-driver/blender36/` holds the twenty patches; each one is the smallest
-change that fixes a real compile/install error and, where upstream 4.2 already
-solved the same problem, is modelled on it:
+`custom-driver/blender36/` holds the twenty-five patches; each one is the
+smallest change that fixes a real compile/install error and, where upstream 4.2
+already solved the same problem, is modelled on it:
 
 | patch | what it fixes |
 | --- | --- |
@@ -152,6 +152,17 @@ solved the same problem, is modelled on it:
 | `0012` | 4.2 names sndfile `sndfile.dll`, not `libsndfile-1.dll` — the missing-file `install(FILES ...)` aborted `cmake --install`, skipping `datafiles/icons` and `datafiles/studiolights` |
 | `0013` | Windows-ARM64 sse2neon discovery: 3.6 wired it only into `platform_apple.cmake`/`platform_unix.cmake`, so Cycles' Neon-emulated SSE kernels had no include path on Windows (same block as 4.2) |
 | `0014` | Compile the SSE kernels on MSVC ARM64: MSVC defines `_M_ARM64`, never `__ARM_NEON`, and `simd.h` included `<intrin.h>` before the Neon branch. Cycles also needs `system_cpu_support_sse41()` true, because OpenImageDenoise and the Denoise node are gated on it (same three call sites as 4.2) |
+| `0015` | 4.2 ships **OpenImageDenoise 2.3**, which has no `common.lib`/`dnnl.lib` beside `OpenImageDenoise.lib`; 3.6 linked all three unconditionally |
+| `0016` | The boost 3.3/3.4-era fallback rewrites the suffix to `vc142-mt-gd-x64` with a `lib` prefix — names that do not exist on ARM64, so it is skipped there |
+| `0017` | Cycles' Neon `vqtbl2q_s8` wrappers pass compound literals through macro layers, which MSVC C++ rejects; the tuple objects are named instead (`math.h`, `math_float3.h`, `math_intersect.h`, `simd.h`) |
+| `0018` | `profiling.cpp` includes `<chrono>` explicitly instead of relying on a transitive include |
+| `0019` | Cycles' CPU brand probe uses `__cpuid`, which does not exist on ARM64 even though MSVC defines `WIN32` |
+| `0020` | `_M_ARM64` joins `__KERNEL_64_BIT__` so `ccl_try_align(16)` keeps its padding, and the FPCR helpers get an MSVC branch (no inline assembly) |
+| `0021` | OpenVDB 11's nanovdb conversion API is only declared with `NANOVDB_USE_OPENVDB` defined |
+| `0022` | nanovdb 32.6 renamed `openToNanoVDB<GridType>(...)` to `createNanoGrid<GridType, DstBuildT>()`, which is what 4.2 calls |
+| `0023` | USD 24.05's token macros do not expand under MSVC 14.5x's conforming preprocessor, so `bf_usd` builds with `/Zc:preprocessor-` |
+| `0024` | The arm64 boost set is dynamic but has no `boost_python310`, so the `BOOST_ALL_DYN_LINK` detection is keyed on `boost_locale` and the Python library trigger gets its own variable |
+| `0025` | `bf_usd` opts out of USD's Python support (`PXR_PYTHON_SUPPORT_ENABLED`), because the prebuilt USD would otherwise need the Python 3.11 `boost_python` this tree cannot link |
 
 Staging is `custom-driver/blender36/stage_runtime.py`: it walks `blender.exe`'s
 import graph transitively, copies anything missing out of
@@ -213,6 +224,16 @@ to suspect if the full build misbehaves: **OpenVDB 11.0** (3.6 expects 10.0) and
 **USD 24.05** (3.6's code targets 23.05, and the shipped `usd_ms.lib` was built
 against Python 3.11 while this tree links Python 3.10 — the C API symbol names
 it needs are version-independent, so this may link, but it is unproven).
+
+USD's Python bindings are unusable here for the same reason, and `0025` opts the
+`bf_usd` target out of them: the prebuilt USD defines
+`PXR_PYTHON_SUPPORT_ENABLED` in `pxr/pxr.h`, so `tf/pyObjWrapper.h` includes
+`boost/python`, while the dependency set only has `boost_python311` for its
+Python 3.11. Blender's USD I/O never calls USD's Python API, and USD's own
+static asserts guarantee the stub `TfPyObjWrapper` it uses instead has identical
+size and alignment. Boost itself is otherwise linked dynamically (`0024` keys
+the `BOOST_ALL_DYN_LINK` detection on `boost_locale`, because the
+`boost_python310` file 3.6 looks for does not exist in a 3.11-built set).
 
 `numpy` is now compiled from the sdist (`ci_numpy_arm64.bat`) because no
 `win_arm64`/cp310 wheel exists for 1.26.4 or 2.x; a headers-only numpy made

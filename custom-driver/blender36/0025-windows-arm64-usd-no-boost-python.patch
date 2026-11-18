@@ -1,0 +1,39 @@
+--- a/source/blender/io/usd/CMakeLists.txt
++++ b/source/blender/io/usd/CMakeLists.txt
+@@ -162,6 +162,12 @@
+ # the conforming preprocessor on globally, so switch back for this target only.
+ if(MSVC AND ("${CMAKE_CXX_COMPILER_ARCHITECTURE_ID}" STREQUAL "ARM64"))
+   target_compile_options(bf_usd PRIVATE "/Zc:preprocessor-")
++  # The prebuilt arm64 USD has Python support compiled in, which makes
++  # pxr/base/tf/pyObjWrapper.h include boost/python, but the arm64 boost build
++  # is bound to Python 3.11 while this tree targets 3.10. There is no
++  # boost_python310 to link and the USD Python API is not used here, so switch
++  # to the stub TfPyObjWrapper through the pre-included header.
++  target_compile_options(bf_usd PRIVATE "/FI${CMAKE_CURRENT_SOURCE_DIR}/intern/usd_no_boost_python.h")
+ endif()
+ 
+ if(WITH_GTESTS)
+--- /dev/null
++++ b/source/blender/io/usd/intern/usd_no_boost_python.h
+@@ -0,0 +1,21 @@
++/* SPDX-License-Identifier: GPL-2.0-or-later */
++
++/* Pre-included into every bf_usd translation unit on Windows arm64.
++ *
++ * The prebuilt arm64 USD is configured with Python support, so its generated
++ * `pxr/pxr.h` defines `PXR_PYTHON_SUPPORT_ENABLED` and
++ * `pxr/base/tf/pyObjWrapper.h` then includes `<boost/python/...>`. The arm64
++ * boost of the dependency set is bound to Python 3.11 while this tree targets
++ * 3.10, so there is no boost_python310 to link against, and Blender's USD I/O is
++ * C++ only and never calls USD's Python API.
++ *
++ * Undefining the macro here makes pyObjWrapper.h use the stub
++ * `TfPyObjWrapper`, which USD guarantees to be ABI compatible with the Python
++ * variant through static asserts on its size and alignment. It has to happen
++ * through a pre-included header: `pxr/pxr.h` only `#define`s the macro, which a
++ * `/U` switch can not undo, and pxr.h's include guard keeps this undef in
++ * effect for the rest of the translation unit. */
++
++#include "pxr/pxr.h"
++
++#undef PXR_PYTHON_SUPPORT_ENABLED
