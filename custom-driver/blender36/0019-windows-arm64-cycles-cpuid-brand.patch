@@ -1,0 +1,14 @@
+--- a/intern/cycles/util/system.cpp
++++ b/intern/cycles/util/system.cpp
+@@ -80,7 +80,10 @@
+   if (sysctlbyname("machdep.cpu.brand_string", &modelname, &bufferlen, NULL, 0) == 0) {
+     return modelname;
+   }
+-#elif defined(WIN32) || defined(__x86_64__) || defined(__i386__)
++#elif (defined(WIN32) && !defined(_M_ARM64)) || defined(__x86_64__) || defined(__i386__)
++  /* __cpuid does not exist on ARM64, where MSVC still defines WIN32, so the
++   * probe is skipped and the fallback below returns an empty string. That only
++   * affects the reported CPU name. */
+   /* Get from intrinsics on Windows and x86. */
+   char buf[49] = {0};
+   int result[4] = {0};
