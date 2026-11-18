@@ -1,0 +1,12 @@
+--- a/intern/cycles/util/profiling.cpp
++++ b/intern/cycles/util/profiling.cpp
+@@ -1,7 +1,9 @@
+ /* SPDX-License-Identifier: Apache-2.0
+  * Copyright 2011-2022 Blender Foundation */
+ 
++#include <chrono>
++
+ #include "util/profiling.h"
+ #include "util/algorithm.h"
+ #include "util/foreach.h"
+ #include "util/set.h"
