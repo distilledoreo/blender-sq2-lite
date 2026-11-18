@@ -132,7 +132,7 @@ and Blender's Windows-on-ARM support were created for 4.2), and its Python
 pin is 3.10, which only exists for ARM64 as the nuget `pythonarm64` build. The
 route taken is the 4.2 arm64 dependency set plus an injected CPython 3.10.11.
 
-`custom-driver/blender36/` holds the fourteen patches; each one is the smallest
+`custom-driver/blender36/` holds the twenty patches; each one is the smallest
 change that fixes a real compile/install error and, where upstream 4.2 already
 solved the same problem, is modelled on it:
 

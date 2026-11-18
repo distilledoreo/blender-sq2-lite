@@ -1,0 +1,39 @@
+--- a/intern/cycles/scene/image_vdb.cpp
++++ b/intern/cycles/scene/image_vdb.cpp
+@@ -55,22 +55,28 @@
+     if constexpr (!std::is_same_v<GridType, openvdb::MaskGrid>) {
+       try {
+         FloatGridType floatgrid(*openvdb::gridConstPtrCast<GridType>(grid));
++        /* nanovdb 32.6, which ships with OpenVDB 11, replaced the variadic
++         * openToNanoVDB<TreeType, FpType>() template with createNanoGrid<GridType,
++         * DstBuildT>(); 4.2 uses exactly these calls. */
+         if constexpr (std::is_same_v<FloatGridType, openvdb::FloatGrid>) {
+           if (precision == 0) {
+-            nanogrid = nanovdb::openToNanoVDB<nanovdb::HostBuffer,
+-                                              typename FloatGridType::TreeType,
+-                                              nanovdb::FpN>(floatgrid);
++            nanogrid = nanovdb::createNanoGrid<openvdb::FloatGrid, nanovdb::FpN>(floatgrid);
+             return true;
+           }
+           else if (precision == 16) {
+-            nanogrid = nanovdb::openToNanoVDB<nanovdb::HostBuffer,
+-                                              typename FloatGridType::TreeType,
+-                                              nanovdb::Fp16>(floatgrid);
++            nanogrid = nanovdb::createNanoGrid<openvdb::FloatGrid, nanovdb::Fp16>(floatgrid);
+             return true;
+           }
++          else {
++            nanogrid = nanovdb::createNanoGrid<openvdb::FloatGrid, float>(floatgrid);
++          }
++        }
++        else {
++          /* The only other instantiation, since grid_type_operation maps every
++           * multi-channel grid onto openvdb::Vec3fGrid. */
++          nanogrid = nanovdb::createNanoGrid<openvdb::Vec3fGrid, nanovdb::Vec3f>(
++              floatgrid, nanovdb::StatsMode::Disable);
+         }
+-
+-        nanogrid = nanovdb::openToNanoVDB(floatgrid);
+       }
+       catch (const std::exception &e) {
+         VLOG_WARNING << "Error converting OpenVDB to NanoVDB grid: " << e.what();
