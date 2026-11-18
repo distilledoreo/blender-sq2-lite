@@ -1,0 +1,37 @@
+--- a/intern/cycles/util/defines.h
++++ b/intern/cycles/util/defines.h
+@@ -12,7 +12,7 @@
+ /* Bitness */
+ 
+ #if defined(__ppc64__) || defined(__PPC64__) || defined(__x86_64__) || defined(__ia64__) || \
+-    defined(_M_X64) || defined(__aarch64__)
++    defined(_M_X64) || defined(__aarch64__) || defined(_M_ARM64)
+ #  define __KERNEL_64_BIT__
+ #endif
+ 
+--- a/intern/cycles/util/simd.h
++++ b/intern/cycles/util/simd.h
+@@ -39,7 +39,12 @@
+ #    define SIMD_SET_FLUSH_TO_ZERO \
+       _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON); \
+       _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+-#  elif !defined(_M_ARM64)
++#  elif defined(_MSC_VER)
++/* MSVC has no inline assembly and sse2neon is not used on Windows ARM64, so
++ * there is no SSE-style FPCR access here: leave the default FPCR untouched. */
++#    define SIMD_SET_FLUSH_TO_ZERO
++#    define SIMD_GET_FLUSH_TO_ZERO 0
++#  else
+ #    define _MM_FLUSH_ZERO_ON 24
+ #    define __get_fpcr(__fpcr) __asm__ __volatile__("mrs %0,fpcr" : "=r"(__fpcr))
+ #    define __set_fpcr(__fpcr) __asm__ __volatile__("msr fpcr,%0" : : "ri"(__fpcr))
+@@ -119,7 +124,8 @@
+ } step ccl_attr_maybe_unused;
+ 
+ #endif
+-#if (defined(__aarch64__) || defined(_M_ARM64)) && !defined(_MM_SET_FLUSH_ZERO_MODE)
++#if (defined(__aarch64__) || defined(_M_ARM64)) && !defined(_MM_SET_FLUSH_ZERO_MODE) && \
++    !defined(_MSC_VER)
+ __forceinline int set_fz(uint32_t flag)
+ {
+   uint64_t old_fpcr, new_fpcr;
