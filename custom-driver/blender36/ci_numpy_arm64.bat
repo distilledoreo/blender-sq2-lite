@@ -23,6 +23,10 @@ set "SRC=%~1"
 if "%SRC%"=="" set "SRC=C:\b"
 set "PYDIR=%SRC%\lib\windows_arm64\python\310"
 set "PY=%PYDIR%\bin\python.exe"
+rem pip installs console scripts (cython.exe, meson.exe) into Scripts, and meson
+rem looks Cython up by running `cython -V` on PATH, so that directory has to be
+rem on PATH for the numpy build to configure at all.
+set "PATH=%PYDIR%\Scripts;%PYDIR%;%PATH%"
 
 for /f "usebackq delims=" %%i in (`vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -property installationPath`) do set "VSPATH=%%i"
 if "%VSPATH%"=="" (
