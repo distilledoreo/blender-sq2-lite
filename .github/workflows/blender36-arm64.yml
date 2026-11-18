@@ -272,9 +272,18 @@ jobs:
             "print('FEATURES', ' '.join('%s=%s' % (k, getattr(o, k)) for k in ('cycles', 'usd', 'alembic', 'openvdb', 'opensubdiv', 'collada', 'potrace', 'boost', 'xr_openxr')))"
           )
           Set-Content -Path $checkPy -Value $lines -Encoding ascii
-          & "C:\b\build\bin\blender.exe" -b --factory-startup --python-exit-code 13 --python $checkPy 2>&1 | Select-String "PYOK|NUMPYOK|FEATURES|No module named|Traceback"
-          if ($LASTEXITCODE -ne 0) { throw "python smoke test exited $LASTEXITCODE" }
-          Remove-Item $checkPy -Force -ErrorAction SilentlyContinue
+          # Keep the whole output: filtering it for the markers hides the
+          # traceback of an `--python-exit-code` failure, which is the only thing
+          # that says why the script did not finish.
+          $pyLog = "C:\b\build\bin\pycheck.log"
+          & "C:\b\build\bin\blender.exe" -b --factory-startup --python-exit-code 13 --python $checkPy *> $pyLog
+          $pyCode = $LASTEXITCODE
+          Get-Content $pyLog | Select-String "PYOK|NUMPYOK|FEATURES"
+          if ($pyCode -ne 0) {
+            Get-Content $pyLog | Select-Object -Last 40
+            throw "python smoke test exited $pyCode"
+          }
+          Remove-Item $checkPy, $pyLog -Force -ErrorAction SilentlyContinue
 
           foreach ($p in "3.6\python\lib\encodings", "3.6\python\DLLs", "3.6\scripts\addons\io_scene_fbx", "3.6\python\lib\site-packages\numpy\core\multiarray.pyd") {
             if (-not (Test-Path (Join-Path "C:\b\build\bin" $p))) { throw "install tree is missing $p" }
