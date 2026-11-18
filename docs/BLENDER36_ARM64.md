@@ -132,7 +132,7 @@ and Blender's Windows-on-ARM support were created for 4.2), and its Python
 pin is 3.10, which only exists for ARM64 as the nuget `pythonarm64` build. The
 route taken is the 4.2 arm64 dependency set plus an injected CPython 3.10.11.
 
-`custom-driver/blender36/` holds the twenty-six patches; each one is the
+`custom-driver/blender36/` holds the twenty-seven patches; each one is the
 smallest change that fixes a real compile/install error and, where upstream 4.2
 already solved the same problem, is modelled on it:
 
@@ -164,6 +164,7 @@ already solved the same problem, is modelled on it:
 | `0024` | The arm64 boost set is dynamic but has no `boost_python310`, so the `BOOST_ALL_DYN_LINK` detection is keyed on `boost_locale` and the Python library trigger gets its own variable |
 | `0025` | `bf_usd` opts out of USD's Python support (`PXR_PYTHON_SUPPORT_ENABLED`), because the prebuilt USD would otherwise need the Python 3.11 `boost_python` this tree cannot link |
 | `0026` | `usd_common.cc`'s plugin-path block (only compiled without USD Python support) uses `SEP_STR` without including `BLI_path_util.h`, which its test twin does include |
+| `0027` | The arm64 OpenCOLLADA build folds PCRE into its own static libraries and ships no `pcre.lib`, which `bf_collada` links unconditionally, so `PCRE_LIBRARIES` stays unset on ARM64 |
 
 Staging is `custom-driver/blender36/stage_runtime.py`: it walks `blender.exe`'s
 import graph transitively, copies anything missing out of
@@ -205,7 +206,9 @@ artifacts). `lite` is round 20's configuration and is kept only as a known-good
 bisect target.
 
 `full` enables Cycles (CPU, Embree), USD, Alembic, OpenVDB, OpenSubdiv,
-OpenImageDenoise, Collada, Potrace, Boost, OpenXR and FFmpeg. Two things are
+OpenImageDenoise, Collada, Potrace, Boost, OpenXR and FFmpeg. Collada needs
+`WITH_OPENCOLLADA`; `WITH_COLLADA` is not a 3.6 CMake option and is silently
+ignored, which is why rounds up to 40 reported `collada=False`. Two things are
 still off, for dependency reasons rather than choice:
 
 - **OpenShadingLanguage.** 3.6's OSL glue targets OSL 1.12 / LLVM 15; the only
