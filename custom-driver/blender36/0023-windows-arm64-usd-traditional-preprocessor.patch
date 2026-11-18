@@ -1,0 +1,18 @@
+--- a/source/blender/io/usd/CMakeLists.txt
++++ b/source/blender/io/usd/CMakeLists.txt
+@@ -155,6 +155,15 @@
+ 
+ blender_add_lib(bf_usd "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+ 
++# USD 24.05's token machinery (pxr/base/tf/preprocessorUtilsLite.h) does not
++# survive MSVC 14.5x's conforming preprocessor: TF_DECLARE_PUBLIC_TOKENS leaves
++# _TF_PP_IFF_ and TF_PP_CAT unexpanded, so pxr/usd/sdf/tokens.h fails to parse,
++# while USD's traditional-MSVC branch compiles fine. Only the arm64 build turns
++# the conforming preprocessor on globally, so switch back for this target only.
++if(MSVC AND ("${CMAKE_CXX_COMPILER_ARCHITECTURE_ID}" STREQUAL "ARM64"))
++  target_compile_options(bf_usd PRIVATE "/Zc:preprocessor-")
++endif()
++
+ if(WITH_GTESTS)
+   set(TEST_SRC
+     tests/usd_curves_test.cc
