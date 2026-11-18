@@ -1,0 +1,18 @@
+--- a/build_files/cmake/platform/platform_win32.cmake
++++ b/build_files/cmake/platform/platform_win32.cmake
+@@ -853,6 +853,15 @@
+   endif()
+ endif()
+ 
++if(WITH_CPU_SIMD AND SUPPORT_NEON_BUILD)
++  windows_find_package(sse2neon)
++  if(NOT SSE2NEON_FOUND)
++    set(SSE2NEON_ROOT_DIR ${LIBDIR}/sse2neon)
++    set(SSE2NEON_INCLUDE_DIRS ${LIBDIR}/sse2neon)
++    set(SSE2NEON_FOUND True)
++  endif()
++endif()
++
+ if(WITH_CYCLES AND WITH_CYCLES_OSL)
+   set(CYCLES_OSL ${LIBDIR}/osl CACHE PATH "Path to OpenShadingLanguage installation")
+   set(OSL_SHADER_DIR ${CYCLES_OSL}/shaders)

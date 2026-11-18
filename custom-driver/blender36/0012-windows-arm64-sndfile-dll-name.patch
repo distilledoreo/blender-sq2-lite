@@ -1,0 +1,31 @@
+--- a/source/creator/CMakeLists.txt
++++ b/source/creator/CMakeLists.txt
+@@ -1289,10 +1289,24 @@
+     list(APPEND LIB ${TBB_MALLOC_LIBRARIES})
+   endif()
+ 
+-  windows_install_shared_manifest(
+-    FILES ${LIBDIR}/sndfile/lib/libsndfile-1.dll
+-    ALL
+-  )
++  # The arm64 dependency set ships `sndfile.dll`, the 3.6-era sets shipped
++  # `libsndfile-1.dll`. `install(FILES ...)` on a path that does not exist
++  # aborts `cmake --install`, which skips every later install rule - that is
++  # what silently dropped `datafiles/icons` and `datafiles/studiolights`
++  # (blank tool icons in the UI) from the staged tree.
++  if(EXISTS ${LIBDIR}/sndfile/lib/libsndfile-1.dll)
++    set(SNDFILE_DLL ${LIBDIR}/sndfile/lib/libsndfile-1.dll)
++  else()
++    set(SNDFILE_DLL ${LIBDIR}/sndfile/lib/sndfile.dll)
++  endif()
++
++  if(EXISTS ${SNDFILE_DLL})
++    windows_install_shared_manifest(
++      FILES ${SNDFILE_DLL}
++      ALL
++    )
++  endif()
++  unset(SNDFILE_DLL)
+ 
+   windows_install_shared_manifest(
+     FILES ${LIBDIR}/shaderc/bin/shaderc_shared.dll

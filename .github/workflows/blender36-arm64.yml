@@ -1,9 +1,15 @@
-name: blender36-arm64-lite
+name: blender36-arm64
 
-# Attempts a native Windows-ARM64 build of Blender 3.6 (lite: no Cycles/USD/
-# Alembic/OIDN/FFmpeg/OpenVDB/OpenSubdiv). 3.6 has no arm64 dependency set of
-# its own, so the 4.2 arm64 libs are used and ARM64 CPython 3.10 is injected at
-# lib/windows_arm64/python/310 in the layout 3.6 expects.
+# Native Windows-ARM64 build of Blender 3.6.
+#
+# `features: full` (the default) enables Cycles, USD, Alembic, OpenVDB,
+# OpenSubdiv, OpenImageDenoise, Collada, Potrace, Boost, OpenXR and FFmpeg.
+# `features: lite` reproduces the original EEVEE/Workbench-only build, kept so a
+# regression can be bisected against a known-good configuration.
+#
+# 3.6 has no arm64 dependency set of its own, so the 4.2 arm64 libs are used and
+# ARM64 CPython 3.10 is injected at lib/windows_arm64/python/310 in the layout
+# 3.6 expects. numpy, for which no arm64 wheel exists, is compiled from source.
 #
 # Configure/build run through custom-driver/blender36/ci_*_arm64.bat, which set
 # up vcvarsall arm64 and use the Ninja generator: the "Visual Studio 17 2022"
@@ -18,6 +24,10 @@ on:
       blender_ref:
         description: "Blender git ref (tag/branch) to build"
         default: "v3.6.23"
+        required: true
+      features:
+        description: "Feature set: full or lite"
+        default: "full"
         required: true
       configure_only:
         description: "Stop after the CMake configure step"
@@ -109,24 +119,24 @@ jobs:
           Copy-Item "$t\libs\*" "$dst\libs\" -Recurse -Force
           & "$dst\bin\python.exe" -c "import sys; print('python', sys.version, sys.platform)"
           Write-Host "python310.lib present: $(Test-Path "$dst\libs\python310.lib")"
-          # audaspace's Python bindings include numpy headers, and 3.6 looks for the
-          # pre-2.0 layout numpy/core/include. There is no win_arm64/cp310 numpy
-          # wheel, so take the headers from the 1.26.4 sdist (compile-time only;
-          # the `aud` module still needs numpy at runtime).
-          # numpy's C headers are architecture-independent, so take numpy/core/include
-          # from any 1.26.4 wheel (there is no cp310/win_arm64 build).
-          $npdl = "$env:RUNNER_TEMP\npwheel"
-          New-Item -ItemType Directory -Force $npdl | Out-Null
-          & "$dst\bin\python.exe" -m pip download numpy==1.26.4 --only-binary=:all: --platform win_amd64 --python-version 310 --implementation cp --no-deps -d $npdl 2>&1 | Select-Object -Last 2
-          $whl = (Get-ChildItem "$npdl\*.whl" | Select-Object -First 1).FullName
-          Write-Host "numpy wheel: $whl"
-          if (-not $whl) { throw "numpy wheel not downloaded" }
-          Copy-Item $whl "$npdl\numpy.zip" -Force
-          Expand-Archive "$npdl\numpy.zip" -DestinationPath "$npdl\x" -Force
-          Copy-Item "$npdl\x\numpy\core\include" "$dst\lib\site-packages\numpy\core\include" -Recurse -Force
-          $np = "$dst\lib\site-packages\numpy\core\include\numpy\ndarrayobject.h"
-          Write-Host "numpy headers present: $(Test-Path $np)"
-          if (-not (Test-Path $np)) { throw "numpy headers missing at $np" }
+          # numpy has no win_arm64/cp310 wheel, so it is compiled from source in
+          # the next step; that build also provides the numpy/core/include
+          # headers audaspace needs at compile time.
+
+      # numpy ships no win_arm64/cp310 wheel for 1.26 (the last release line 3.6
+      # supports), so the sdist is compiled with the same ARM64 toolchain as
+      # Blender. A headers-only numpy is worse than none: `import numpy` then
+      # succeeds as an empty namespace package and FBX/glTF export fails with
+      # "module 'numpy' has no attribute 'single'" (measured on round 20).
+      - name: Build numpy for ARM64 Python 3.10
+        shell: pwsh
+        run: |
+          cmd /c "$env:GITHUB_WORKSPACE\custom-driver\blender36\ci_numpy_arm64.bat" C:\b 2>&1 | Tee-Object -FilePath numpy.log
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "===== numpy build tail ====="
+            Get-Content numpy.log -Tail 60 | ForEach-Object { Write-Host $_ }
+            throw "numpy build failed"
+          }
 
       - name: Apply Windows-ARM64 patches
         shell: pwsh
@@ -138,10 +148,10 @@ jobs:
           }
           Select-String -Path C:\b\build_files\cmake\platform\platform_win32.cmake -Pattern "windows_arm64|MACHINE:ARM64|Zc:preprocessor" | ForEach-Object { $_.Line.Trim() }
 
-      - name: Configure (lite, Ninja + arm64 MSVC)
+      - name: Configure (${{ inputs.features }}, Ninja + arm64 MSVC)
         shell: pwsh
         run: |
-          cmd /c "$env:GITHUB_WORKSPACE\custom-driver\blender36\ci_configure_arm64.bat" C:\b 2>&1 | Tee-Object -FilePath configure.log
+          cmd /c "$env:GITHUB_WORKSPACE\custom-driver\blender36\ci_configure_arm64.bat" C:\b ${{ inputs.features }} 2>&1 | Tee-Object -FilePath configure.log
           if ($LASTEXITCODE -ne 0) { Write-Host "=== configure failed ==="; throw "configure failed" }
           Select-String -Path C:\b\build\CMakeCache.txt -Pattern "LIBDIR_BASE|CMAKE_SYSTEM_PROCESSOR:|PYTHON_LIBRARY:|PYTHON_EXECUTABLE:" | ForEach-Object { $_.Line }
 
@@ -154,7 +164,7 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-      - name: Build (lite)
+      - name: Build
         if: ${{ !inputs.configure_only }}
         shell: pwsh
         run: |
@@ -201,7 +211,10 @@ jobs:
           # and the bundled Python). The checks below fail the step if any of
           # those did not land, so a partial install cannot be uploaded.
           cmake --install C:\b\build
-          if ($LASTEXITCODE -ne 0) { Write-Host "install reported $LASTEXITCODE (non-fatal), staging build\bin as-is" }
+          # Install stops at the first `install(FILES ...)` whose source is
+          # missing (3.6 names 3.x-era DLLs) and silently skips every later
+          # rule; the checks at the end of this step are what catch that.
+          if ($LASTEXITCODE -ne 0) { Write-Host "install reported $LASTEXITCODE (non-fatal), staging build\bin as-is; rules after the failure did not run" }
 
           # blender.exe declares a side-by-side dependency on the `blender.shared`
           # assembly, so the folder needs its manifest or the exe dies with
@@ -252,22 +265,36 @@ jobs:
             'import encodings  # needs python/lib (the bundled stdlib)',
             'import bpy',
             'import io_scene_fbx  # needs scripts/addons',
-            "print('PYOK', sys.version.split()[0], bpy.app.version_string, io_scene_fbx.bl_info['name'])"
+            'import numpy  # must be a real numpy, not a headers-only namespace package',
+            "print('PYOK', sys.version.split()[0], bpy.app.version_string, io_scene_fbx.bl_info['name'])",
+            "print('NUMPYOK', numpy.__version__, hasattr(numpy, 'single'), hasattr(numpy, 'lcm'))",
+            'o = bpy.app.build_options',
+            "print('FEATURES', ' '.join('%s=%s' % (k, getattr(o, k)) for k in ('cycles', 'usd', 'alembic', 'openvdb', 'opensubdiv', 'collada', 'potrace', 'boost', 'xr_openxr')))"
           )
           Set-Content -Path $checkPy -Value $lines -Encoding ascii
-          & "C:\b\build\bin\blender.exe" -b --factory-startup --python-exit-code 13 --python $checkPy 2>&1 | Select-String "PYOK|No module named|Traceback"
+          & "C:\b\build\bin\blender.exe" -b --factory-startup --python-exit-code 13 --python $checkPy 2>&1 | Select-String "PYOK|NUMPYOK|FEATURES|No module named|Traceback"
           if ($LASTEXITCODE -ne 0) { throw "python smoke test exited $LASTEXITCODE" }
           Remove-Item $checkPy -Force -ErrorAction SilentlyContinue
 
-          foreach ($p in "3.6\python\lib\encodings", "3.6\python\DLLs", "3.6\scripts\addons\io_scene_fbx") {
+          foreach ($p in "3.6\python\lib\encodings", "3.6\python\DLLs", "3.6\scripts\addons\io_scene_fbx", "3.6\python\lib\site-packages\numpy\core\multiarray.pyd") {
             if (-not (Test-Path (Join-Path "C:\b\build\bin" $p))) { throw "install tree is missing $p" }
           }
+
+          # `datafiles/icons` holds the vector icons for the tool buttons in the
+          # 3D viewport toolbar (188 `.dat` files, one per `ICON_GEOM_NAMES`
+          # entry). 3.6 loads them from disk at draw time, so a missing
+          # directory renders every tool button as an empty square while the
+          # 16 px texture icons in the headers still look fine. Round 20
+          # shipped without it because `cmake --install` aborted earlier.
+          $geomIcons = @(Get-ChildItem "C:\b\build\bin\3.6\datafiles\icons\*.dat" -ErrorAction SilentlyContinue)
+          if ($geomIcons.Count -lt 188) { throw "3.6\datafiles\icons has $($geomIcons.Count) geometry icons, expected 188" }
+          if (-not (Test-Path "C:\b\build\bin\3.6\datafiles\studiolights")) { throw "install tree is missing 3.6\datafiles\studiolights" }
 
       - name: Upload blender.exe
         if: ${{ !inputs.configure_only && always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: blender36-lite-arm64
+          name: blender36-${{ inputs.features }}-arm64
           path: C:\b\build\bin
           retention-days: 7
           if-no-files-found: warn

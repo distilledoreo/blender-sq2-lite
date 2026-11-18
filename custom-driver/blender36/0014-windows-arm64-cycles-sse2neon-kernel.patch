@@ -1,0 +1,83 @@
+--- a/intern/cycles/util/optimization.h
++++ b/intern/cycles/util/optimization.h
+@@ -40,7 +40,7 @@
+  * SSE, some specializations for performance and compatibility are made
+  * made testing for __KERNEL_NEON__. */
+ 
+-#  elif defined(__ARM_NEON) && defined(WITH_SSE2NEON)
++#  elif (defined(__ARM_NEON) || defined(_M_ARM64)) && defined(WITH_SSE2NEON)
+ 
+ #    define __KERNEL_NEON__
+ #    define __KERNEL_SSE__
+--- a/intern/cycles/util/simd.h
++++ b/intern/cycles/util/simd.h
+@@ -18,7 +18,7 @@
+  * Since we can't avoid including <windows.h>, better only include that */
+ #if defined(FREE_WINDOWS64)
+ #  include "util/windows.h"
+-#elif defined(_MSC_VER)
++#elif defined(_MSC_VER) && !defined(__KERNEL_NEON__)
+ #  include <intrin.h>
+ #elif (defined(__x86_64__) || defined(__i386__))
+ #  include <x86intrin.h>
+@@ -39,7 +39,7 @@
+ #    define SIMD_SET_FLUSH_TO_ZERO \
+       _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON); \
+       _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+-#  else
++#  elif !defined(_M_ARM64)
+ #    define _MM_FLUSH_ZERO_ON 24
+ #    define __get_fpcr(__fpcr) __asm__ __volatile__("mrs %0,fpcr" : "=r"(__fpcr))
+ #    define __set_fpcr(__fpcr) __asm__ __volatile__("msr fpcr,%0" : : "ri"(__fpcr))
+--- a/source/blender/blenlib/BLI_simd.h
++++ b/source/blender/blenlib/BLI_simd.h
+@@ -8,7 +8,7 @@
+  * SIMD instruction support.
+  */
+ 
+-#if defined(__ARM_NEON) && defined(WITH_SSE2NEON)
++#if (defined(__ARM_NEON) || defined(_M_ARM64)) && defined(WITH_SSE2NEON)
+ /* SSE/SSE2 emulation on ARM Neon. Match SSE precision. */
+ #  define SSE2NEON_PRECISE_MINMAX 1
+ #  define SSE2NEON_PRECISE_DIV 1
+--- a/source/blender/blenlib/intern/system.c
++++ b/source/blender/blenlib/intern/system.c
+@@ -163,6 +163,11 @@
+     return (result[2] & ((int)1 << 19)) != 0;
+   }
+ #endif
++#if defined(_M_ARM64)
++  /* No CPUID on ARM64. OpenImageDenoise and the SSE code paths are compiled
++   * through sse2neon there, and both gate on this probe reporting support. */
++  return 1;
++#endif
+   return 0;
+ }
+ 
+--- a/intern/cycles/util/system.cpp
++++ b/intern/cycles/util/system.cpp
+@@ -217,14 +217,22 @@
+ }
+ #else
+ 
++/* With sse2neon the SSE kernels run on Neon, so SSE2 and SSE4.1 are always
++ * available and OpenImageDenoise is usable (it is gated on this probe). */
++#ifdef WITH_SSE2NEON
++#  define CYCLES_CPU_SIMD_SUPPORTED true
++#else
++#  define CYCLES_CPU_SIMD_SUPPORTED false
++#endif
++
+ bool system_cpu_support_sse2()
+ {
+-  return false;
++  return CYCLES_CPU_SIMD_SUPPORTED;
+ }
+ 
+ bool system_cpu_support_sse41()
+ {
+-  return false;
++  return CYCLES_CPU_SIMD_SUPPORTED;
+ }
+ 
+ bool system_cpu_support_avx2()

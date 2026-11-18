@@ -4,11 +4,13 @@ Two separate things were asked for: an **ARM64 build of Blender 3.6**, and a
 **bridge that uses the ARM64 Blender 4.5 build to convert newer files** into
 something 3.6 can open.
 
-Both now exist and are measured. The ARM64 3.6 build is a *lite* build (no
-Cycles/USD/Alembic/OIDN/FFmpeg/OpenVDB/OpenSubdiv/Collada) and the bridge was
-re-run end to end on it: a 4.5 scene opened natively, was repaired, and was
-written as a genuine 3.6 file. Sections 1–2 are the conversion behaviour, 3 is
-the build, 4 lists what is still unverified.
+Both now exist and are measured. The build originally shipped as a *lite* set
+(EEVEE/Workbench only); it now builds the full feature set — Cycles, USD,
+Alembic, OpenVDB, OpenSubdiv, OpenImageDenoise, Collada, Potrace, Boost, OpenXR
+and FFmpeg — with two exceptions recorded in section 3. The bridge was re-run
+end to end on the lite artifact: a 4.5 scene opened natively, was repaired, and
+was written as a genuine 3.6 file. Sections 1–2 are the conversion behaviour, 3
+is the build, 4 lists what is still unverified.
 
 Measured with:
 - Blender 4.5.16 LTS, ARM64 native (`blender-4.5.16-windows-arm64/`)
@@ -130,7 +132,7 @@ and Blender's Windows-on-ARM support were created for 4.2), and its Python
 pin is 3.10, which only exists for ARM64 as the nuget `pythonarm64` build. The
 route taken is the 4.2 arm64 dependency set plus an injected CPython 3.10.11.
 
-`custom-driver/blender36/` holds the eleven patches; each one is the smallest
+`custom-driver/blender36/` holds the fourteen patches; each one is the smallest
 change that fixes a real compile/install error and, where upstream 4.2 already
 solved the same problem, is modelled on it:
 
@@ -147,6 +149,9 @@ solved the same problem, is modelled on it:
 | `0009` | ARM64 OIIO needs the separate `imath` include dir (same hunk as 4.2) |
 | `0010` | 4.2 ships FFTW static, so `libfftw3-3.dll` never exists |
 | `0011` | 4.2 names gmp `gmp-10.dll`, not `libgmp-10.dll` |
+| `0012` | 4.2 names sndfile `sndfile.dll`, not `libsndfile-1.dll` — the missing-file `install(FILES ...)` aborted `cmake --install`, skipping `datafiles/icons` and `datafiles/studiolights` |
+| `0013` | Windows-ARM64 sse2neon discovery: 3.6 wired it only into `platform_apple.cmake`/`platform_unix.cmake`, so Cycles' Neon-emulated SSE kernels had no include path on Windows (same block as 4.2) |
+| `0014` | Compile the SSE kernels on MSVC ARM64: MSVC defines `_M_ARM64`, never `__ARM_NEON`, and `simd.h` included `<intrin.h>` before the Neon branch. Cycles also needs `system_cpu_support_sse41()` true, because OpenImageDenoise and the Denoise node are gated on it (same three call sites as 4.2) |
 
 Staging is `custom-driver/blender36/stage_runtime.py`: it walks `blender.exe`'s
 import graph transitively, copies anything missing out of
@@ -167,27 +172,65 @@ Round-by-round history, with the exact error text of each failure, is in
    `tools\blender36\blender36.cmd scene.blend`, or open files directly in
    `blender.exe` (the bridge is loaded from `3.6/scripts/startup` either way).
 
-### What the lite set leaves out
+The round-20 artifact is missing `3.6/datafiles/icons` and
+`3.6/datafiles/studiolights`: `cmake --install` aborted at the sndfile DLL and
+never reached those rules. Without `icons` the left toolbar's tool buttons
+draw as empty squares — they are `ICON_TYPE_VECTOR` icons read from
+`datafiles/icons/<name>.dat` at draw time, unlike the 16 px textures in the
+headers, which come from the embedded atlas. Either take the next workflow
+artifact, or repair an existing tree with:
 
-`WITH_CYCLES/USD/ALEMBIC/OPENIMAGEDENOISE/FFMPEG/OPENVDB/OPENSUBDIV/COLLADA/
-OPENCOLLADA/POTRACE/BOOST/HYDRA/XR_OPENXR=OFF`. Cycles renders, USD/Alembic
-import-export, FFmpeg video output, OpenVDB volumes, OpenSubdiv, Collada and
-the Hydra/MaterialX viewport integrations are therefore absent; EEVEE,
-Workbench, modelling, materials, geometry nodes and Python scripting are
-present. Adding them back is a CMake-option change plus whatever dependency
-version drift shows up — the ARM64 build-system delta itself is already in.
+```
+xcopy /s /y blender-blender-v3.6-release\release\datafiles\icons C:\Blender36ARM64\3.6\datafiles\icons\
+xcopy /s /y blender-blender-v3.6-release\release\datafiles\studiolights C:\Blender36ARM64\3.6\datafiles\studiolights\
+```
+
+### Feature sets
+
+`ci_configure_arm64.bat <src> [full|lite]` takes the set, and the workflow's
+`features` input picks it (`blender36-full-arm64` / `blender36-lite-arm64`
+artifacts). `lite` is round 20's configuration and is kept only as a known-good
+bisect target.
+
+`full` enables Cycles (CPU, Embree), USD, Alembic, OpenVDB, OpenSubdiv,
+OpenImageDenoise, Collada, Potrace, Boost, OpenXR and FFmpeg. Two things are
+still off, for dependency reasons rather than choice:
+
+- **OpenShadingLanguage.** 3.6's OSL glue targets OSL 1.12 / LLVM 15; the only
+  ARM64 libraries available are OSL 1.13 / LLVM 17, so Cycles would need a
+  port, not a flag.
+- **Draco.** There is no `draco` directory in the 4.2 ARM64 dependency set at
+  all, so glTF compression stays unavailable (`Draco mesh compression is not
+  available` is logged, and glTF still exports everything else).
+
+GPU device backends stay off on purpose: there are no CUDA/OptiX/HIP/oneAPI/
+Metal drivers on Windows ARM64, and 4.2 disables CUDA/HIP there too.
+`WITH_TBB_MALLOC_PROXY` is off because TBB's allocator replacement is
+unsupported on ARM64.
+
+Two library ABI drifts are being carried rather than avoided, and are the parts
+to suspect if the full build misbehaves: **OpenVDB 11.0** (3.6 expects 10.0) and
+**USD 24.05** (3.6's code targets 23.05, and the shipped `usd_ms.lib` was built
+against Python 3.11 while this tree links Python 3.10 — the C API symbol names
+it needs are version-independent, so this may link, but it is unproven).
+
+`numpy` is now compiled from the sdist (`ci_numpy_arm64.bat`) because no
+`win_arm64`/cp310 wheel exists for 1.26.4 or 2.x; a headers-only numpy made
+`import numpy` succeed as an empty namespace package, which is why FBX and glTF
+export failed on the lite artifact with `module 'numpy' has no attribute
+'single'`.
 
 ## 4. Not verified
 
-- The GUI was not driven on the SQ2: the build was exercised in background mode
-  (`--version`, `--python`, file open/save). Viewport behaviour on the Adreno
-  GPU is untested for this build.
+- The GUI was driven on the SQ2 only for a startup scene (round-20 tree): it
+  opens, draws the cube, grid, gizmos and header icons. Toolbar tool icons were
+  blank there until `datafiles/icons` was restored; rendering, navigation
+  smoothness and heavier scenes on the Adreno GPU are still unmeasured.
 - The lite set means nothing Cycles/USD/FFmpeg/OpenVDB-related is measured.
-- **numpy is not in the tree.** The injected CPython 3.10.11 has no numpy
-  binary for win_arm64 (no wheel exists), so only numpy's C headers are
-  present, which is enough to compile the `aud` module but not to `import
-  numpy` at runtime. Scripts that need numpy will fail; this is independent of
-  the 4.5 → 3.6 conversion.
+- **The lite artifact's numpy is a stub.** `import numpy` succeeds there as an
+  empty namespace package (headers only), so FBX export, glTF export and any
+  add-on using numpy fail. The full build compiles a real numpy; that behaviour
+  is what the CI smoke test now asserts (`NUMPYOK … True True`).
 - The conversion table covers one synthetic scene: materials with Principled
   v2, emission, one geometry-nodes modifier, one light, one camera. Libraries,
   linked assets, drivers, simulation caches, EEVEE Next-specific settings
@@ -212,6 +255,12 @@ recording because they make a *working* install differ from a *linking* one:
   plain clone builds a Blender that cannot enable a single add-on, FBX/OBJ/glTF
   included. The workflow now clones `blender-addons` at `v3.6.23` and the
   smoke test imports `io_scene_fbx`.
+- A *linking* install also differs from a *complete* one: `cmake --install`
+  stops at the first `install(FILES ...)` whose source does not exist and skips
+  every later rule without failing the build. Round 20 lost `datafiles/icons`
+  and `datafiles/studiolights` that way, because 3.6 still names
+  `libsndfile-1.dll` while the 4.2 arm64 set ships `sndfile.dll`. `0012` guards
+  that rule and the staging step now requires both directories.
 - `WITH_PYTHON_INSTALL=OFF` (the first lite configuration) produces a tree with
   no `3.6/python` at all: the exe starts, prints `--version`, and then dies on
   `ModuleNotFoundError: No module named 'encodings'` as soon as Python

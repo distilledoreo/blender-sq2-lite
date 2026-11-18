@@ -41,6 +41,8 @@ Setup per run: clone Blender `v3.6.23` → clone `lib-windows_arm64`
 
 | 20 | 44192487368 | — **every step succeeded**; artifact `blender36-lite-arm64` (335 MB unpacked) contains `3.6/python/{bin,DLLs,lib}`, `3.6/scripts/addons` with 104 add-ons, and the in-run smoke test printed `PYOK 3.10.11 3.6.23 FBX format` | the only change was packaging: Python install on, 3.6's Python layout, `blender-addons` clone, and the import-based smoke test | downloaded and verified here: `--version` exits 0, `pycheck.py` exits 0, and the bridge converted `work/test45.blend` (4.5.92) to `work/test45_r20.v36.blend`, which reopens as `SCENE_ENGINE BLENDER_EEVEE`, `VIEW_TRANSFORM Filmic`, all Principled values (Transmission 0.6, Subsurface 0.2, Specular 0.7, Sheen 0.5, Clearcoat 0.8) and the geometry-nodes modifier intact, with no add-on errors |
 
+| 21 | 44192487368 (r20 tree) | GUI opened from `artifacts/r20` and drew the startup scene, but every tool button in the left 3D-viewport toolbar was an empty grey square, while the 16 px icons in the header, the navigation gizmo and the menus were fine | the round-20 install log contains `CMake Error at .../cmake_install.cmake:314 (file): file INSTALL cannot find "C:/b/lib/windows_arm64/sndfile/lib/libsndfile-1.dll": File exists.` — install aborted there, and the geometry-icon and studio-light rules come after it, so `3.6/datafiles/icons` (191 `.dat` vector tool icons) and `3.6/datafiles/studiolights` never landed. Toolbar tools are `ICON_TYPE_VECTOR` icons read from `datafiles/icons/<name>.dat` while drawing, so a missing directory draws nothing; the header icons come from the atlas compiled into the exe and kept working | `0012-windows-arm64-sndfile-dll-name.patch` picks `sndfile.dll`/`libsndfile-1.dll` by existence, the same shape as `0010`/`0011`. The staging step now fails if `3.6/datafiles/icons` holds fewer than 188 `.dat` files or `3.6/datafiles/studiolights` is absent. `artifacts/r20` was repaired by hand: 191 `.dat` copied in, all 188 `ICON_GEOM_NAMES` entries resolve, `--version` still exits 0 |
+
 Progress markers: run 7 reached `[1746/4757]` objects before the GHOST error,
 run 8 reached `[2029/4757]`, run 10 reached `[2432/4757]`, run 11 reached
 `[3429/4757]`, run 12 reached `[3449/4757]`, run 13 reached `[3506/4757]`,
@@ -53,7 +55,10 @@ Reusable helpers:
 - `ci_configure_arm64.bat` / `ci_build_arm64.bat` — vcvarsall arm64 + cmake.
 - The patch set is applied by glob, so new patches are picked up automatically.
 
-Standing lite option set: `WITH_CYCLES/USD/ALEMBIC/OPENIMAGEDENOISE/FFMPEG/
-OPENVDB/OPENSUBDIV/COLLADA/OPENCOLLADA/POTRACE/BOOST/HYDRA/XR_OPENXR=OFF`,
-`WITH_PYTHON_INSTALL=OFF`. Cycles and the importers are the "full" round,
-added after lite links.
+The lite option set that produced rounds 19–20 is now reachable as
+`ci_configure_arm64.bat <src> lite`; `full` is the default and adds
+Cycles/USD/Alembic/OpenVDB/OpenSubdiv/OIDN/Collada/Potrace/Boost/OpenXR.
+`WITH_PYTHON_INSTALL` stays ON in both: OFF produces a tree whose Python cannot
+initialise at all.
+
+| 22 | (full-feature round) | reading the 4.2 ARM64 dependency set before spending build rounds: it ships **OIDN 2.3.0**, **OpenVDB 11.0**, **OpenSubdiv 3.6.0**, **Embree 4.3.2**, **USD 24.05** and Python **3.11** only, and has **no `draco`** directory and no numpy at all | two of those are not just flag flips. 3.6 discovered sse2neon only in `platform_apple.cmake`/`platform_unix.cmake`, and MSVC ARM64 defines `_M_ARM64` rather than `__ARM_NEON`, so Cycles' SSE kernels had neither an include path nor the branch that enables them; separately `BLI_cpu_support_sse41()`/`system_cpu_support_sse41()` return false on ARM64, which silently disables OpenImageDenoise even when it links | `0013` adds 4.2's sse2neon discovery block to `platform_win32.cmake`, `0014` makes the Neon branch reachable under MSVC and reports SSE2/SSE4.1 support so OIDN activates; `ci_numpy_arm64.bat` compiles numpy 1.26.4 from the sdist (no `win_arm64`/cp310 wheel exists for 1.26 or 2.x), and the smoke test now asserts a real numpy plus the compiled feature flags |
