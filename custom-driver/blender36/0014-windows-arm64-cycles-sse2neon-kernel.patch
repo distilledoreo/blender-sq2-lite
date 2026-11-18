@@ -29,17 +29,6 @@
  #    define _MM_FLUSH_ZERO_ON 24
  #    define __get_fpcr(__fpcr) __asm__ __volatile__("mrs %0,fpcr" : "=r"(__fpcr))
  #    define __set_fpcr(__fpcr) __asm__ __volatile__("msr fpcr,%0" : : "ri"(__fpcr))
---- a/source/blender/blenlib/BLI_simd.h
-+++ b/source/blender/blenlib/BLI_simd.h
-@@ -8,7 +8,7 @@
-  * SIMD instruction support.
-  */
- 
--#if defined(__ARM_NEON) && defined(WITH_SSE2NEON)
-+#if (defined(__ARM_NEON) || defined(_M_ARM64)) && defined(WITH_SSE2NEON)
- /* SSE/SSE2 emulation on ARM Neon. Match SSE precision. */
- #  define SSE2NEON_PRECISE_MINMAX 1
- #  define SSE2NEON_PRECISE_DIV 1
 --- a/source/blender/blenlib/intern/system.c
 +++ b/source/blender/blenlib/intern/system.c
 @@ -163,6 +163,11 @@
