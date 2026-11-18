@@ -29,8 +29,17 @@ rem distutils only uses the already-set-up environment (no vcvars re-detection).
 set "DISTUTILS_USE_SDK=1"
 set "MSSdk=1"
 
-"%PYDIR%\bin\python.exe" -m pip install --no-cache-dir --no-binary=:all: "numpy==1.26.4"
+rem Build isolation does not work here: numpy's pyproject asks for Cython
+rem 0.29.34..3.1, and the 0.29 line has no win_arm64 wheel, so pip tries to
+rem compile Cython from its sdist under MSVC 18 and dies with
+rem `Parsing.c : fatal error C1083: Cannot open compiler generated file: ''`.
+rem Every one of these has a pure-Python (or cp310-win_arm64) wheel, so install
+rem them up front and build numpy against them with --no-build-isolation.
+"%PYDIR%\bin\python.exe" -m pip install --no-cache-dir --only-binary=:all: "setuptools>=68" wheel "Cython<3.1"
 if errorlevel 1 exit /b 4
+
+"%PYDIR%\bin\python.exe" -m pip install --no-cache-dir --no-build-isolation --no-binary=:all: "numpy==1.26.4"
+if errorlevel 1 exit /b 5
 
 "%PYDIR%\bin\python.exe" -c "import numpy, numpy.core.multiarray; print('NUMPY', numpy.__version__, numpy.single)"
 exit /b %ERRORLEVEL%
