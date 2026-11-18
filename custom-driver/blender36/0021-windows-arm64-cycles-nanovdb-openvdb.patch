@@ -1,0 +1,12 @@
+--- a/intern/cycles/scene/image_vdb.cpp
++++ b/intern/cycles/scene/image_vdb.cpp
+@@ -10,6 +10,9 @@
+ #  include <openvdb/tools/Dense.h>
+ #endif
+ #ifdef WITH_NANOVDB
++/* OpenVDB's nanovdb conversion API only exists when this is set; without it the
++ * nanovdb headers stay self-contained and openToNanoVDB() is not declared. */
++#  define NANOVDB_USE_OPENVDB
+ #  include <nanovdb/util/OpenToNanoVDB.h>
+ #endif
+ 
