@@ -1,0 +1,25 @@
+--- a/build_files/cmake/platform/platform_win32.cmake
++++ b/build_files/cmake/platform/platform_win32.cmake
+@@ -452,11 +452,18 @@
+ 
+   list(APPEND OPENCOLLADA_LIBRARIES ${OPENCOLLADA}/lib/opencollada/UTF.lib)
+ 
+-  set(PCRE_LIBRARIES
+-    optimized ${OPENCOLLADA}/lib/opencollada/pcre.lib
++  # The Windows arm64 dependency set's OpenCOLLADA build folds PCRE into its
++  # own static libraries and ships no pcre.lib at all, while
++  # source/blender/io/collada/CMakeLists.txt links ${PCRE_LIBRARIES}
++  # unconditionally. Leaving the variable unset points the link at nothing,
++  # which is what the dependency set expects.
++  if(NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
++    set(PCRE_LIBRARIES
++      optimized ${OPENCOLLADA}/lib/opencollada/pcre.lib
+ 
+-    debug ${OPENCOLLADA}/lib/opencollada/pcre_d.lib
+-  )
++      debug ${OPENCOLLADA}/lib/opencollada/pcre_d.lib
++    )
++  endif()
+ endif()
+ 
+ if(WITH_CODEC_FFMPEG)

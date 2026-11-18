@@ -287,7 +287,11 @@ jobs:
             'glb = os.path.join(tmp, "arm64-smoke.glb")',
             'bpy.ops.export_scene.gltf(filepath=glb, export_format="GLB")',
             "print('GLTFOK', os.path.getsize(glb))",
-            'os.remove(glb)'
+            'os.remove(glb)',
+            'dae = os.path.join(tmp, "arm64-smoke.dae")',
+            'bpy.ops.wm.collada_export(filepath=dae)',
+            "print('COLLADAOK', os.path.getsize(dae))",
+            'os.remove(dae)'
           )
           Set-Content -Path $checkPy -Value $lines -Encoding ascii
           # Keep the whole output: filtering it for the markers hides the
@@ -296,7 +300,7 @@ jobs:
           $pyLog = "C:\b\build\bin\pycheck.log"
           & "C:\b\build\bin\blender.exe" -b --factory-startup --python-exit-code 13 --python $checkPy *> $pyLog
           $pyCode = $LASTEXITCODE
-          Get-Content $pyLog | Select-String "PYOK|NUMPYOK|FEATURES|CYCLESOK|FBXOK|GLTFOK"
+          Get-Content $pyLog | Select-String "PYOK|NUMPYOK|FEATURES|CYCLESOK|FBXOK|GLTFOK|COLLADAOK"
           if ($pyCode -ne 0) {
             # `Select-Object` output did not survive the step failure in round
             # 39, so hand the whole file to Write-Host as one value.
