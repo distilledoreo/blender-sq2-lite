@@ -1,0 +1,34 @@
+--- a/build_files/cmake/platform/platform_win32.cmake
++++ b/build_files/cmake/platform/platform_win32.cmake
+@@ -748,14 +748,23 @@
+   set(OPENIMAGEDENOISE ${LIBDIR}/OpenImageDenoise)
+   set(OPENIMAGEDENOISE_LIBPATH ${LIBDIR}/OpenImageDenoise/lib)
+   set(OPENIMAGEDENOISE_INCLUDE_DIRS ${OPENIMAGEDENOISE}/include)
+-  set(OPENIMAGEDENOISE_LIBRARIES
+-    optimized ${OPENIMAGEDENOISE_LIBPATH}/OpenImageDenoise.lib
+-    optimized ${OPENIMAGEDENOISE_LIBPATH}/common.lib
+-    optimized ${OPENIMAGEDENOISE_LIBPATH}/dnnl.lib
+-    debug ${OPENIMAGEDENOISE_LIBPATH}/OpenImageDenoise_d.lib
+-    debug ${OPENIMAGEDENOISE_LIBPATH}/common_d.lib
+-    debug ${OPENIMAGEDENOISE_LIBPATH}/dnnl_d.lib
+-  )
++  if(EXISTS ${OPENIMAGEDENOISE_LIBPATH}/common.lib)
++    set(OPENIMAGEDENOISE_LIBRARIES
++      optimized ${OPENIMAGEDENOISE_LIBPATH}/OpenImageDenoise.lib
++      optimized ${OPENIMAGEDENOISE_LIBPATH}/common.lib
++      optimized ${OPENIMAGEDENOISE_LIBPATH}/dnnl.lib
++      debug ${OPENIMAGEDENOISE_LIBPATH}/OpenImageDenoise_d.lib
++      debug ${OPENIMAGEDENOISE_LIBPATH}/common_d.lib
++      debug ${OPENIMAGEDENOISE_LIBPATH}/dnnl_d.lib
++    )
++  else()
++    # OpenImageDenoise 2.x, which is what the Windows arm64 dependency set ships:
++    # common.lib and dnnl.lib are gone and their code lives inside the DLL.
++    set(OPENIMAGEDENOISE_LIBRARIES
++      optimized ${OPENIMAGEDENOISE_LIBPATH}/OpenImageDenoise.lib
++      debug ${OPENIMAGEDENOISE_LIBPATH}/OpenImageDenoise_d.lib
++    )
++  endif()
+   set(OPENIMAGEDENOISE_DEFINITIONS)
+ endif()
+ 
