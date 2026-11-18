@@ -1,0 +1,20 @@
+--- a/build_files/cmake/platform/platform_win32.cmake
++++ b/build_files/cmake/platform/platform_win32.cmake
+@@ -608,8 +608,15 @@
+     # This is file new in 3.4 if it does not exist, assume we are building against 3.3 libs
+     set(BOOST_34_TRIGGER_FILE ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_python310-${BOOST_DEBUG_POSTFIX}.lib)
+     if(NOT EXISTS ${BOOST_34_TRIGGER_FILE})
+-      set(BOOST_DEBUG_POSTFIX "vc142-mt-gd-x64-${BOOST_VERSION}")
+-      set(BOOST_PREFIX "lib")
++      # The 3.3/3.4-era detection looks for boost_python built for this tree's
++      # Python (3.10). The Windows arm64 dependency set is built against Python
++      # 3.11, so that file never exists here and the rewrite below (lib/ prefix,
++      # vc142-mt-gd-x64) would point at libraries that are not in the set at
++      # all. ARM64 support arrived in 4.x, after this fallback.
++      if(NOT CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
++        set(BOOST_DEBUG_POSTFIX "vc142-mt-gd-x64-${BOOST_VERSION}")
++        set(BOOST_PREFIX "lib")
++      endif()
+     endif()
+     set(BOOST_LIBRARIES
+       optimized ${BOOST_LIBPATH}/${BOOST_PREFIX}boost_date_time-${BOOST_POSTFIX}.lib
