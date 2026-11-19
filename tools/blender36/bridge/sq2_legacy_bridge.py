@@ -69,6 +69,10 @@ RESTORE = {}
 
 LAST_REPORT = []
 
+# Files Blender writes for itself; converting these to 4.5 would break the
+# install (a 4.5 startup.blend cannot be read back by a 3.6 boot).
+CONFIG_NAMES = {"startup.blend", "userpref.blend", "quit.blend", "bookmarks.blend"}
+
 _CONVERTING = False
 _45_EXE = False  # False = not looked up yet, None = not found.
 _SEEN_ENGINE = {}
@@ -239,10 +243,13 @@ def fixup_loaded_file(filepath=""):
     """Repair everything 3.6 had to substitute when the file was read.
 
     Files are assumed to be 4.5, so this runs on every load rather than only
-    when the stamp looks newer.
+    when the stamp looks newer. An empty path is the startup/default scene,
+    which needs no repair and would otherwise print on every launch.
     """
     global LAST_REPORT
     path = filepath or bpy.data.filepath
+    if not path:
+        return []
     mention_next = _file_mentions(path, "BLENDER_EEVEE_NEXT")
     mention_agx = _file_mentions(path, "AgX")
 
@@ -261,13 +268,30 @@ def fixup_loaded_file(filepath=""):
     return report
 
 
-def _is_temp(path):
-    temp = getattr(bpy.app, "tempdir", "") or ""
-    if not temp:
+def _under(path, directory):
+    if not directory:
         return False
     path = os.path.abspath(path).lower()
-    temp = os.path.abspath(temp).lower()
-    return path == temp or path.startswith(temp + os.sep)
+    directory = os.path.abspath(directory).lower()
+    return path == directory or path.startswith(directory + os.sep)
+
+
+def _is_temp(path):
+    return _under(path, getattr(bpy.app, "tempdir", "") or "")
+
+
+def _is_blender_own_file(path):
+    """True for Blender's own config/install files, which must stay untouched."""
+    if os.path.basename(path).lower() in CONFIG_NAMES:
+        return True
+    install = os.path.dirname(os.path.abspath(bpy.app.binary_path))
+    if _under(path, install):
+        return True
+    try:
+        config = bpy.utils.user_resource("CONFIG")
+    except Exception:
+        config = ""
+    return _under(path, config or "")
 
 
 def should_convert(path):
@@ -277,6 +301,10 @@ def should_convert(path):
     if os.environ.get("SQ2_NO_45_SAVE") == "1":
         return False
     if _is_temp(path):
+        return False
+    if _is_blender_own_file(path):
+        print("%s: %s is a Blender config file, left in %s format"
+              % (BRIDGE_TAG, path, _stamp_text(read_stamp(path))))
         return False
     stamp = read_stamp(path)
     if not stamp:
