@@ -93,7 +93,9 @@ Behaviour:
   recover locally; the following save still rewrites the whole file (appended
   data included) as 4.5.
 - `BLENDER45_EXE` points at the 4.5 binary; unset, the bridge looks for a
-  `blender-4.*` directory next to the 3.6 install. `SQ2_NO_45_SAVE=1` leaves
+  `blender-4.*` directory next to the 3.6 install and prefers the one built
+  for the running CPU — on the SQ2 that is the ARM64 4.5, not the emulated
+  x64 one. `SQ2_NO_45_SAVE=1` leaves
   saves in 3.6 format (diagnostic only).
 - Every run prints `SQ2-BRIDGE:` lines, so the conversion is visible in logs
   instead of happening silently.
@@ -322,12 +324,30 @@ the `BOOST_ALL_DYN_LINK` detection on `boost_locale`, because the
 export failed on the lite artifact with `module 'numpy' has no attribute
 'single'`.
 
+### Rendering (measured on the SQ2)
+
+Both engines were run headless on the ARM64 build (`-b … -f 1`, 128x128, a lit
+red cube, 16 samples) and both wrote a correct image, not a black frame:
+
+| engine | output | timing |
+| --- | --- | --- |
+| EEVEE (3.6 has no EEVEE Next; the bridge maps Next → EEVEE) | `eevee_0001.png`, cube lit by the sun, `Rendering 16 / 16 samples`, exit 0 | ~6 s scene sync + ~4.3 s for the 16 samples |
+| Cycles | `cycles_0001.png`, same framing, 16 samples, exit 0 | under 1 s |
+
+The GL stack is not a vendor Adreno OpenGL ICD: `--debug-gpu` shows
+`OPENGL32.dll` → `OpenGLOn12.dll` → `d3d12.dll`, i.e. Microsoft's
+OpenGL-on-D3D12 layer (Mesa's Dozen). EEVEE's output is therefore real GPU
+work, but it arrives through D3D12 rather than a native GL driver. Cycles on
+this build is CPU-only — 3.6 has no Windows-ARM64 GPU backends
+(no CUDA/OptiX/HIP/oneAPI/Metal) — so there is no Cycles GPU pipeline to test.
+
 ## 4. Not verified
 
 - The GUI was driven on the SQ2 only for a startup scene (round-20 tree): it
   opens, draws the cube, grid, gizmos and header icons. Toolbar tool icons were
-  blank there until `datafiles/icons` was restored; rendering, navigation
-  smoothness and heavier scenes on the Adreno GPU are still unmeasured.
+  blank there until `datafiles/icons` was restored; *interactive* viewport
+  rendering, navigation smoothness and heavier scenes on the Adreno GPU are
+  still unmeasured. Headless EEVEE and Cycles do produce correct images (§3).
 - The lite set means nothing Cycles/USD/FFmpeg/OpenVDB-related is measured.
 - **The lite artifact's numpy is a stub.** `import numpy` succeeds there as an
   empty namespace package (headers only), so FBX export, glTF export and any

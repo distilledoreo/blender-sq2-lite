@@ -38,6 +38,7 @@ Environment:
 
 import json
 import os
+import platform
 import subprocess
 import sys
 import time
@@ -165,6 +166,16 @@ def _file_mentions(path, needle, chunk_size=4 << 20):
         return False
 
 
+def _arch_tokens():
+    """Folder-name tokens that mark a 4.x build for this machine's CPU."""
+    machine = platform.machine().lower()
+    if machine in ("arm64", "aarch64"):
+        return ("arm64",)
+    if machine in ("amd64", "x86_64", "x64"):
+        return ("x64", "amd64")
+    return ()
+
+
 def blender45_exe():
     """Locate the Blender 4.5 binary used to write files back as 4.5."""
     global _45_EXE
@@ -189,7 +200,12 @@ def blender45_exe():
     except OSError:
         pass
     if candidates:
-        _45_EXE = sorted(candidates)[-1][1]
+        # Prefer a build for this CPU. A plain sort is wrong: "...-windows-arm64"
+        # sorts before "...-windows-x64", so on the SQ2 it would hand every save
+        # to the emulated x64 4.5 instead of the native ARM64 one.
+        tokens = _arch_tokens()
+        candidates.sort(key=lambda item: (any(t in item[0].lower() for t in tokens), item[0]))
+        _45_EXE = candidates[-1][1]
         return _45_EXE
 
     _45_EXE = None
