@@ -254,6 +254,35 @@ def fix_scene(scene, report, mention_next=False, mention_agx=False):
         else:
             report.append("view transform AgX could not be replaced by Filmic (scene %r)" % scene.name)
 
+    _fixup_denoising(scene, report)
+
+
+def _fixup_denoising(scene, report):
+    """Clear *Denoise* when this build has no OpenImageDenoise.
+
+    A 4.5 scene almost always asks Cycles to denoise. The arm64 OIDN has no
+    device, so OIDN is configured out of this build and a denoise request fails
+    the render outright (`Build without OpenImageDenoiser`) rather than saving
+    anything. Clearing the flag on load turns that hard failure into the frame
+    the scene would have rendered un-denoised.
+    """
+    options = getattr(bpy.app, "build_options", None)
+    if options is not None and getattr(options, "openimagedenoise", False):
+        return
+    try:
+        cycles = scene.cycles
+    except Exception:
+        return
+    if not getattr(cycles, "use_denoising", False):
+        return
+    try:
+        cycles.use_denoising = False
+    except Exception:
+        report.append("denoising could not be cleared (scene %r)" % scene.name)
+        return
+    report.append("denoising turned off, no OpenImageDenoise in this build (scene %r)"
+                  % scene.name)
+
 
 def fixup_loaded_file(filepath=""):
     """Repair everything 3.6 had to substitute when the file was read.

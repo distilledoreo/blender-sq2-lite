@@ -225,7 +225,7 @@ already solved the same problem, is modelled on it:
 | `0011` | 4.2 names gmp `gmp-10.dll`, not `libgmp-10.dll` |
 | `0012` | 4.2 names sndfile `sndfile.dll`, not `libsndfile-1.dll` — the missing-file `install(FILES ...)` aborted `cmake --install`, skipping `datafiles/icons` and `datafiles/studiolights` |
 | `0013` | Windows-ARM64 sse2neon discovery: 3.6 wired it only into `platform_apple.cmake`/`platform_unix.cmake`, so Cycles' Neon-emulated SSE kernels had no include path on Windows (same block as 4.2) |
-| `0014` | Compile the SSE kernels on MSVC ARM64: MSVC defines `_M_ARM64`, never `__ARM_NEON`, and `simd.h` included `<intrin.h>` before the Neon branch. Cycles also needs `system_cpu_support_sse41()` true, because OpenImageDenoise and the Denoise node are gated on it (same three call sites as 4.2). Opening the gate is not the same as a working denoiser — the shipped OIDN has no device, see §4 |
+| `0014` | Compile the SSE kernels on MSVC ARM64: MSVC defines `_M_ARM64`, never `__ARM_NEON`, and `simd.h` included `<intrin.h>` before the Neon branch. Cycles also needs `system_cpu_support_sse41()` true, because OpenImageDenoise and the Denoise node are gated on it (same three call sites as 4.2). Opening the gate is not the same as a working denoiser — the shipped OIDN has no device, so OIDN is now configured out, see §3 |
 | `0015` | 4.2 ships **OpenImageDenoise 2.3**, which has no `common.lib`/`dnnl.lib` beside `OpenImageDenoise.lib`; 3.6 linked all three unconditionally |
 | `0016` | The boost 3.3/3.4-era fallback rewrites the suffix to `vc142-mt-gd-x64` with a `lib` prefix — names that do not exist on ARM64, so it is skipped there |
 | `0017` | Cycles' Neon `vqtbl2q_s8` wrappers pass compound literals through macro layers, which MSVC C++ rejects; the tuple objects are named instead (`math.h`, `math_float3.h`, `math_intersect.h`, `simd.h`) |
@@ -334,15 +334,16 @@ red cube, 16 samples) and both wrote a correct image, not a black frame:
 | EEVEE (3.6 has no EEVEE Next; the bridge maps Next → EEVEE) | `eevee_0001.png`, cube lit by the sun, `Rendering 16 / 16 samples`, exit 0 | ~6 s scene sync + ~4.3 s for the 16 samples |
 | EEVEE at 1920x1080 | `fullhd_0001.png` (1.94 MB), 16 samples, clean edges, exit 0 | 4.55 s render + 1.15 s save, 43 MB peak, 7 s wall clock |
 | Cycles | `cycles_0001.png`, same framing, 16 samples, exit 0 | under 1 s |
-| Cycles with OIDN denoising | **fails — and writes a black frame** | — |
+| Cycles with denoising requested | **refused cleanly**: exit 1, `Build without OpenImageDenoiser`, no image written | — |
 | EEVEE 1920x1080, 64 samples, soft shadows, world volume + spot | `heavy_0001.png` (2.03 MB), exit 0 | 15.1 s for 64 samples + 1.1 s save, 19 s wall, 43.7 MB peak |
 
 1080p being *faster* than 128px (7 s wall vs 10.4 s) says the cost is
 first-frame shader translation in the GL-on-D3D12 layer, not fill rate: the
 full-resolution frame is genuinely cheap once the pipeline is warm.
 
-**Denoising does not work on this build.** The linked OIDN 2.3 reports zero
-physical devices and rejects every device type:
+**Denoising is not built into this build.** The 4.2 ARM64 dependency set ships
+OpenImageDenoise 2.3 as a shell — zero physical devices, every device type
+rejected:
 
 ```
 PHYSICAL_DEVICES 0
@@ -352,13 +353,42 @@ DEVICE_TYPE 2 -> 'unsupported device type: SYCL'
 DEVICE_TYPE 3 -> 'unsupported device type: CUDA'
 ```
 
-`denoiser_oidn.cpp` then logs `OpenImageDenoise error: no supported devices
-found` and saves the empty denoised buffer: the same 8-spp frame that is
-correctly noisy with denoising off comes out **black** with it on (mean 0.0016
-vs 0.4785, high-frequency energy 0.0017 vs 0.0085). The 4.2 ARM64 dependency
-set shipped an OIDN with no device compiled in — the same reason Blender's own
-Windows-ARM64 4.5 release ships no OIDN DLLs. Until a CPU-enabled OIDN is built
-for win-arm64, leave **Denoise** off; it is worse than not denoising.
+Linked, `denoiser_oidn.cpp` logged `OpenImageDenoise error: no supported devices
+found` and then saved the empty denoised buffer: the same 8-spp frame that is
+correctly noisy with denoising off came out **black** with it on (mean 0.0016
+vs 0.4785, high-frequency energy 0.0017 vs 0.0085).
+
+`ci_configure_arm64.bat` therefore configures `full` with
+`-DWITH_OPENIMAGEDENOISE=OFF` (round 45). No denoise code exists to damage a
+frame, and the failure is explicit instead of silent. Measured on the round-45
+ARM64 artifact, same 8-spp 320x240 scene and seed as the black frame above:
+
+| denoise request | result |
+| --- | --- |
+| off | `off_0001.png`, exit 0, mean 0.4785, std 0.1981 — identical to the frame from before the change |
+| on (`scene.cycles.use_denoising = True`) | exit 1, `Build without OpenImageDenoiser` and `No device available to denoise on`, **no file written** — there is no black frame to save |
+| compositor `Denoise` node between Render Layers and Composite | exit 0, exact passthrough: 0 of 76800 pixels differ from the un-denoised frame (mean \|Δ\| 0.000000) |
+
+The Cycles `denoiser` enum is empty in this build (`enum "OPENIMAGEDENOISE" not
+found in ()`) and CI asserts `DENOISE False` in `bpy.app.build_options`. The
+compositor node is still in the menu but is a no-op, because
+`COM_is_denoise_supported()` is false without OIDN.
+
+A 4.5 Cycles scene normally has *Denoise* on, which would make every such file
+refuse to render, so the bridge clears the flag while loading (section 2).
+Measured on the same artifact: a 4.5 file saved with
+`scene.cycles.use_denoising = True` opens with
+
+```
+SQ2-BRIDGE: denoising turned off, no OpenImageDenoise in this build (scene 'Scene')
+AFTER_LOAD_DENOISE False
+Saved: '...from45_0001.png'
+```
+
+and exits 0 with the same un-denoised frame (mean 0.4785, std 0.1981).
+Restoring real denoising needs an OIDN built with `OIDN_DEVICE_CPU` for
+win-arm64 — Blender's own Windows-ARM64 4.5 release ships no OIDN DLLs for the
+same reason.
 
 **Shadows and volumetrics do render.** A/B on the 1080p frame: zeroing the
 world volume changes 99.4 % of pixels (mean |Δ| 0.107), so volumetric
@@ -404,10 +434,12 @@ this build is CPU-only — 3.6 has no Windows-ARM64 GPU backends
 - **Appends are partially covered.** Appended object data needs no fixup, but
   an appended *scene* has its engine and view transform reset by 3.6 during
   the append, before any handler can see the original names.
-- **Denoising is broken** (§3): the linked OIDN has no device, so *Denoise* logs
-  an error and saves a black frame. Not addressed yet — the fix is either an
-  OIDN built with `OIDN_DEVICE_CPU` for win-arm64, or
-  `-DWITH_OPENIMAGEDENOISE=OFF` so the option is not offered at all.
+- **Denoising is not available** (§3): OIDN is configured out
+  (`-DWITH_OPENIMAGEDENOISE=OFF`), so a denoise request fails with an explicit
+  error and writes no frame, instead of the black frame the linked-but-
+  deviceless OIDN produced, and the bridge turns *Denoise* off when it loads a
+  4.5 scene so those files still render (un-denoised). Real denoising would
+  need an OIDN built with `OIDN_DEVICE_CPU` for win-arm64.
 - **Draco** is now compiled and its glTF round trip is asserted in CI
   (`DRACODLL`, `DRACOEXPORT`, `DRACOOK`), but no other application has opened
   the compressed output yet.
