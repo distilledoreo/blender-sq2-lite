@@ -332,7 +332,12 @@ red cube, 16 samples) and both wrote a correct image, not a black frame:
 | engine | output | timing |
 | --- | --- | --- |
 | EEVEE (3.6 has no EEVEE Next; the bridge maps Next → EEVEE) | `eevee_0001.png`, cube lit by the sun, `Rendering 16 / 16 samples`, exit 0 | ~6 s scene sync + ~4.3 s for the 16 samples |
+| EEVEE at 1920x1080 | `fullhd_0001.png` (1.94 MB), 16 samples, clean edges, exit 0 | 4.55 s render + 1.15 s save, 43 MB peak, 7 s wall clock |
 | Cycles | `cycles_0001.png`, same framing, 16 samples, exit 0 | under 1 s |
+
+1080p being *faster* than 128px (7 s wall vs 10.4 s) says the cost is
+first-frame shader translation in the GL-on-D3D12 layer, not fill rate: the
+full-resolution frame is genuinely cheap once the pipeline is warm.
 
 The GL stack is not a vendor Adreno OpenGL ICD: `--debug-gpu` shows
 `OPENGL32.dll` → `OpenGLOn12.dll` → `d3d12.dll`, i.e. Microsoft's
