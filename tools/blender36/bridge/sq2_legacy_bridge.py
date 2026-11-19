@@ -280,18 +280,25 @@ def _is_temp(path):
     return _under(path, getattr(bpy.app, "tempdir", "") or "")
 
 
-def _is_blender_own_file(path):
-    """True for Blender's own config/install files, which must stay untouched."""
+def _own_file_reason(path):
+    """Why ``path`` has to stay untouched, or '' when it is a normal user file."""
     if os.path.basename(path).lower() in CONFIG_NAMES:
-        return True
+        return "Blender's own config file"
     install = os.path.dirname(os.path.abspath(bpy.app.binary_path))
     if _under(path, install):
-        return True
+        return "inside the Blender install"
     try:
         config = bpy.utils.user_resource("CONFIG")
     except Exception:
         config = ""
-    return _under(path, config or "")
+    if _under(path, config or ""):
+        return "in Blender's config directory"
+    return ""
+
+
+def _is_blender_own_file(path):
+    """True for Blender's own config/install files, which must stay untouched."""
+    return bool(_own_file_reason(path))
 
 
 def should_convert(path):
@@ -302,9 +309,10 @@ def should_convert(path):
         return False
     if _is_temp(path):
         return False
-    if _is_blender_own_file(path):
-        print("%s: %s is a Blender config file, left in %s format"
-              % (BRIDGE_TAG, path, _stamp_text(read_stamp(path))))
+    reason = _own_file_reason(path)
+    if reason:
+        print("%s: %s is %s, left in %s format"
+              % (BRIDGE_TAG, path, reason, _stamp_text(read_stamp(path))))
         return False
     stamp = read_stamp(path)
     if not stamp:

@@ -353,11 +353,16 @@ jobs:
           # Bridge behaviour, without --factory-startup so this is exactly what a
           # user gets at boot. The runner has no Blender 4.5, so the save must
           # still succeed and report the missing binary instead of throwing.
+          # The probe file has to live outside the install tree: the bridge
+          # leaves Blender's own files alone (round 42 saved next to
+          # blender.exe and was skipped as an install-tree file), and outside
+          # bpy.app.tempdir, which is skipped as an autosave.
           $probe = "C:\b\build\bin\bridge_probe.py"
           $probeLines = @(
             'import os',
             'import bpy',
-            'path = os.path.join(os.path.dirname(bpy.app.binary_path), "bridge-probe.blend")',
+            'root = os.environ.get("RUNNER_TEMP") or os.environ["TEMP"]',
+            'path = os.path.join(root, "bridge-probe.blend")',
             'bpy.ops.wm.save_as_mainfile(filepath=path)',
             'with open(path, "rb") as handle:',
             '    stamp = handle.read(12)[7:12].decode()',
@@ -373,9 +378,19 @@ jobs:
             Write-Host (Get-Content $bridgeLog -Raw)
             throw "bridge probe exited $bridgeCode"
           }
-          if (-not (Select-String -Path $bridgeLog -Pattern "SQ2-BRIDGE: active" -Quiet)) { throw "bridge not loaded from 3.6\scripts\startup" }
-          if (-not (Select-String -Path $bridgeLog -Pattern "SAVEDSTAMP -v306" -Quiet)) { throw "bridge probe did not save a file" }
-          if (-not (Select-String -Path $bridgeLog -Pattern "SQ2-BRIDGE: ERROR no Blender 4.5" -Quiet)) { throw "save_post did not reach the 4.5 conversion step" }
+          # Round 42 failed on these asserts with the reason only visible in
+          # bridge.log, so every miss now dumps the log before throwing.
+          $want = @(
+            @("SQ2-BRIDGE: active", "bridge not loaded from 3.6\scripts\startup"),
+            @("SAVEDSTAMP -v306", "bridge probe did not save a file"),
+            @("SQ2-BRIDGE: ERROR no Blender 4.5", "save_post did not reach the 4.5 conversion step")
+          )
+          foreach ($w in $want) {
+            if (-not (Select-String -Path $bridgeLog -Pattern $w[0] -Quiet)) {
+              Write-Host (Get-Content $bridgeLog -Raw)
+              throw $w[1]
+            }
+          }
           Remove-Item $probe, $bridgeLog -Force -ErrorAction SilentlyContinue
 
       - name: Upload blender.exe
