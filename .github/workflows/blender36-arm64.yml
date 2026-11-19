@@ -284,8 +284,9 @@ jobs:
             'o = bpy.app.build_options',
             "print('FEATURES', ' '.join('%s=%s' % (k, getattr(o, k)) for k in ('cycles', 'usd', 'alembic', 'openvdb', 'opensubdiv', 'collada', 'potrace', 'xr_openxr', 'codec_ffmpeg', 'image_openexr', 'openmp')))",
             # Denoising is built out on purpose; the artifact must not offer a
-            # denoiser whose OIDN has no device (it wrote a black frame).
-            "print('DENOISE', o.openimagedenoise)",
+            # denoiser whose OIDN has no device (it wrote a black frame). A
+            # compiled-out option is not in bpy.app.build_options at all.
+            "print('DENOISE', getattr(o, 'openimagedenoise', False))",
             "bpy.context.scene.render.engine = 'CYCLES'",
             "print('CYCLESOK', bpy.context.scene.render.engine)",
             'bpy.ops.mesh.primitive_cube_add()',
