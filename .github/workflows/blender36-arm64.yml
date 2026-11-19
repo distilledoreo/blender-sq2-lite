@@ -3,7 +3,9 @@ name: blender36-arm64
 # Native Windows-ARM64 build of Blender 3.6.
 #
 # `features: full` (the default) enables Cycles, USD, Alembic, OpenVDB,
-# OpenSubdiv, OpenImageDenoise, Collada, Potrace, Boost, OpenXR and FFmpeg.
+# OpenSubdiv, Collada, Potrace, Boost, OpenXR and FFmpeg. OpenImageDenoise is
+# deliberately not built: the arm64 OIDN reports zero devices, so denoising
+# wrote a black frame (docs/BLENDER36_ARM64.md section 3).
 # `features: lite` reproduces the original EEVEE/Workbench-only build, kept so a
 # regression can be bisected against a known-good configuration.
 #
@@ -281,6 +283,9 @@ jobs:
             "print('NUMPYOK', numpy.__version__, hasattr(numpy, 'single'), hasattr(numpy, 'lcm'))",
             'o = bpy.app.build_options',
             "print('FEATURES', ' '.join('%s=%s' % (k, getattr(o, k)) for k in ('cycles', 'usd', 'alembic', 'openvdb', 'opensubdiv', 'collada', 'potrace', 'xr_openxr', 'codec_ffmpeg', 'image_openexr', 'openmp')))",
+            # Denoising is built out on purpose; the artifact must not offer a
+            # denoiser whose OIDN has no device (it wrote a black frame).
+            "print('DENOISE', o.openimagedenoise)",
             "bpy.context.scene.render.engine = 'CYCLES'",
             "print('CYCLESOK', bpy.context.scene.render.engine)",
             'bpy.ops.mesh.primitive_cube_add()',
@@ -317,13 +322,14 @@ jobs:
           $pyLog = "C:\b\build\bin\pycheck.log"
           & "C:\b\build\bin\blender.exe" -b --factory-startup --python-exit-code 13 --python $checkPy *> $pyLog
           $pyCode = $LASTEXITCODE
-          Get-Content $pyLog | Select-String "PYOK|NUMPYOK|FEATURES|CYCLESOK|FBXOK|GLTFOK|COLLADAOK|DRACODLL|DRACOEXPORT|DRACOOK"
+          Get-Content $pyLog | Select-String "PYOK|NUMPYOK|FEATURES|DENOISE|CYCLESOK|FBXOK|GLTFOK|COLLADAOK|DRACODLL|DRACOEXPORT|DRACOOK"
           if ($pyCode -ne 0) {
             # `Select-Object` output did not survive the step failure in round
             # 39, so hand the whole file to Write-Host as one value.
             Write-Host (Get-Content $pyLog -Raw)
             throw "python smoke test exited $pyCode"
           }
+          if (-not (Select-String -Path $pyLog -Pattern "DENOISE False" -Quiet)) { throw "OpenImageDenoise is still built; the arm64 OIDN has no device and denoising writes a black frame" }
           Remove-Item $checkPy, $pyLog -Force -ErrorAction SilentlyContinue
 
           foreach ($p in "3.6\python\lib\encodings", "3.6\python\DLLs", "3.6\scripts\addons\io_scene_fbx") {

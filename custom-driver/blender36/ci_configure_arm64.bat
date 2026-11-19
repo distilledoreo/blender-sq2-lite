@@ -5,9 +5,10 @@ rem generator cannot find a VS instance on the arm64 CI runner, so Ninja + cl is
 rem used, the same path the 5.2 arm64 build takes.
 rem
 rem Usage: ci_configure_arm64.bat <src> [full|lite]
-rem   full (default) builds Cycles, USD, Alembic, OpenVDB, OpenSubdiv,
-rem   OpenImageDenoise, Collada, Potrace, Boost, OpenXR and FFmpeg. The only
-rem   option left off is OpenShadingLanguage, whose 3.6 code targets OSL 1.12 /
+rem   full (default) builds Cycles, USD, Alembic, OpenVDB, OpenSubdiv, Collada,
+rem   Potrace, Boost, OpenXR and FFmpeg. Two options are off: OpenImageDenoise,
+rem   because the arm64 library has no device at all (see the note above :full),
+rem   and OpenShadingLanguage, whose 3.6 code targets OSL 1.12 /
 rem   LLVM 15 while the arm64 dependency set ships OSL 1.13 / LLVM 17. Draco is
 rem   not a dependency-set problem: it is built from the source vendored in
 rem   extern/draco, so WITH_DRACO needs no arm64 library.
@@ -54,7 +55,15 @@ rem GPU device backends are all off: there are no CUDA/OptiX/HIP/oneAPI/Metal
 rem drivers on Windows ARM64 (upstream 4.2 disables CUDA/HIP the same way).
 rem Cycles CPU still gets Embree, whose arm64 build is SSE/AVX code through
 rem sse2neon-compiled kernels in Blender's own sources (patches 0013/0014).
-set "OPTS=-DWITH_CYCLES=ON -DWITH_CYCLES_OSL=OFF -DWITH_CYCLES_EMBREE=ON -DWITH_CYCLES_DEVICE_CUDA=OFF -DWITH_CYCLES_DEVICE_OPTIX=OFF -DWITH_CYCLES_DEVICE_HIP=OFF -DWITH_CYCLES_DEVICE_ONEAPI=OFF -DWITH_CYCLES_DEVICE_METAL=OFF -DWITH_CYCLES_STANDALONE=OFF -DWITH_OPENIMAGEDENOISE=ON -DWITH_OPENVDB=ON -DWITH_OPENVDB_BLOSC=OFF -DWITH_OPENSUBDIV=ON -DWITH_ALEMBIC=ON -DWITH_USD=ON -DWITH_OPENCOLLADA=ON -DWITH_POTRACE=ON -DWITH_BOOST=ON -DWITH_XR_OPENXR=ON"
+rem
+rem OIDN is OFF on purpose. The 4.2 arm64 dependency set ships OpenImageDenoise
+rem 2.3 as a shell: oidnGetNumPhysicalDevices() returns 0 and every device type
+rem is rejected ("unsupported device type: CPU/SYCL/CUDA"), so Cycles logged
+rem "no supported devices found" and then saved the empty denoised buffer, i.e.
+rem a black frame, and the compositor's Denoise node goes through the same
+rem library. Built out, the denoise code cannot touch the image at all:
+rem Denoiser::load_kernels() fails with "No device available to denoise on".
+set "OPTS=-DWITH_CYCLES=ON -DWITH_CYCLES_OSL=OFF -DWITH_CYCLES_EMBREE=ON -DWITH_CYCLES_DEVICE_CUDA=OFF -DWITH_CYCLES_DEVICE_OPTIX=OFF -DWITH_CYCLES_DEVICE_HIP=OFF -DWITH_CYCLES_DEVICE_ONEAPI=OFF -DWITH_CYCLES_DEVICE_METAL=OFF -DWITH_CYCLES_STANDALONE=OFF -DWITH_OPENIMAGEDENOISE=OFF -DWITH_OPENVDB=ON -DWITH_OPENVDB_BLOSC=OFF -DWITH_OPENSUBDIV=ON -DWITH_ALEMBIC=ON -DWITH_USD=ON -DWITH_OPENCOLLADA=ON -DWITH_POTRACE=ON -DWITH_BOOST=ON -DWITH_XR_OPENXR=ON"
 goto :configure
 
 :lite
