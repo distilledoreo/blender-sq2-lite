@@ -12,9 +12,15 @@ setlocal
 set "HERE=%~dp0"
 
 rem The 4.5 binary that turns each 3.6 save back into a 4.5 file. Override with
-rem BLENDER45_EXE if 4.5 lives somewhere else.
+rem BLENDER45_EXE if 4.5 lives somewhere else. The ARM64 build comes first: this
+rem launcher exists for the SQ2, and an x64 4.5 only works there through
+rem emulation.
 if "%BLENDER45_EXE%"=="" if exist "%HERE%..\..\blender-4.5.16-windows-arm64\blender.exe" set "BLENDER45_EXE=%HERE%..\..\blender-4.5.16-windows-arm64\blender.exe"
+if "%BLENDER45_EXE%"=="" if exist "%HERE%..\..\blender-4.5.16-windows-x64\blender.exe" set "BLENDER45_EXE=%HERE%..\..\blender-4.5.16-windows-x64\blender.exe"
 
+rem The ARM64 3.6 build is the one to use on the SQ2; the x64 tree is only a
+rem fallback for a machine that cannot run ARM64 binaries.
+if "%BLENDER36_HOME%"=="" if exist "%HERE%..\..\blender-3.6.23-windows-arm64\blender.exe" set "BLENDER36_HOME=%HERE%..\..\blender-3.6.23-windows-arm64"
 if "%BLENDER36_HOME%"=="" set "BLENDER36_HOME=%HERE%..\..\blender-3.6.23-windows-x64"
 
 if not exist "%BLENDER36_HOME%\blender.exe" (

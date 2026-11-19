@@ -140,6 +140,30 @@ present, `Filmic` absent, no `.45tmp` leftovers — and reopening it in
 `CHECK45 engine=BLENDER_EEVEE_NEXT view=AgX objects=4`, so both 4.5 names and
 all objects survive the trip through 3.6.
 
+### Verified on the ARM64 build (the SQ2)
+
+The same trip on the real target: the round-43 ARM64 artifact staged as
+`blender-3.6.23-windows-arm64` (built 2026-11-19 02:22) driven by the ARM64
+4.5.16, no emulation:
+
+```
+MADE ... engine=BLENDER_EEVEE_NEXT view=AgX objects=4
+SQ2-BRIDGE: active (this build 3.6.23, saves as 4.5 via .../blender-4.5.16-windows-arm64/blender.exe)
+SQ2-BRIDGE: opened -v405 file .../src45.blend
+SQ2-BRIDGE: engine EEVEE Next recorded for the 4.5 save (scene 'Scene')
+SQ2-BRIDGE: view transform AgX -> Filmic (scene 'Scene', recovered from file)
+LOADED engine=BLENDER_EEVEE view=Filmic objects=4
+SQ2-BRIDGE: .../out36.blend written as Blender -v405 (save)
+SAVED .../out36.blend
+```
+
+What 3.6 left on disk: `-v405`, 440147 bytes, `BLENDER_EEVEE_NEXT` and `AgX`
+present, `Filmic` absent, no `.45tmp` leftovers — and the ARM64 4.5 reports
+`CHECK45 engine=BLENDER_EEVEE_NEXT view=AgX objects=4`. The shipped artifact
+does the whole round trip natively, with the `extern_draco.dll` Draco build of
+the same tree.
+
+
 `tools/blender36/inspect_blend.py` on the written file, in the same ARM64
 build, reports `SCENE_ENGINE BLENDER_EEVEE`, `VIEW_TRANSFORM Filmic`, all five
 Principled values (Transmission 0.6, Subsurface 0.2, Specular 0.7, Sheen 0.5,
@@ -319,9 +343,10 @@ export failed on the lite artifact with `module 'numpy' has no attribute
   has no Blender 4.5 build, so the smoke test asserts the *fallback*: the
   bridge loads from `3.6/scripts/startup`, `save_post` reaches the conversion
   step, the save still succeeds, and the error names the missing binary. The
-  actual re-save and the EEVEE Next/AgX restoration were measured with the same
-  bridge file on official x64 3.6.23 + 4.5.16 binaries (section 2); they have
-  not been repeated on the ARM64 artifact itself, which runs the same code.
+  actual re-save and the EEVEE Next/AgX restoration were measured on official
+  x64 3.6.23 + 4.5.16 binaries and again on the ARM64 artifact with the ARM64
+  4.5.16 (section 2). What is still unmeasured is the *same* trip through the
+  SQ2's GPU-backed interactive session (the runs above are `-b`).
 - **Appends are partially covered.** Appended object data needs no fixup, but
   an appended *scene* has its engine and view transform reset by 3.6 during
   the append, before any handler can see the original names.
