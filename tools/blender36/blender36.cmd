@@ -5,10 +5,15 @@ rem   tools\blender36\blender36.cmd scene.blend
 rem   tools\blender36\blender36.cmd -b scene.blend --python script.py
 rem
 rem Set BLENDER36_HOME to point at another 3.6 install (the folder that holds
-rem blender.exe). Newer .blend files open natively; the bridge fixes the engine
-rem name and view transform and reports anything 3.6 cannot represent.
+rem blender.exe). Files are assumed to be 4.5: they open natively, the bridge
+rem records the engine name and view transform 3.6 had to substitute, and every
+rem save is rewritten as a 4.5 file by BLENDER45_EXE.
 setlocal
 set "HERE=%~dp0"
+
+rem The 4.5 binary that turns each 3.6 save back into a 4.5 file. Override with
+rem BLENDER45_EXE if 4.5 lives somewhere else.
+if "%BLENDER45_EXE%"=="" if exist "%HERE%..\..\blender-4.5.16-windows-arm64\blender.exe" set "BLENDER45_EXE=%HERE%..\..\blender-4.5.16-windows-arm64\blender.exe"
 
 if "%BLENDER36_HOME%"=="" set "BLENDER36_HOME=%HERE%..\..\blender-3.6.23-windows-x64"
 

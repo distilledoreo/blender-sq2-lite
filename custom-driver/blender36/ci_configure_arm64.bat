@@ -8,8 +8,9 @@ rem Usage: ci_configure_arm64.bat <src> [full|lite]
 rem   full (default) builds Cycles, USD, Alembic, OpenVDB, OpenSubdiv,
 rem   OpenImageDenoise, Collada, Potrace, Boost, OpenXR and FFmpeg. The only
 rem   option left off is OpenShadingLanguage, whose 3.6 code targets OSL 1.12 /
-rem   LLVM 15 while the arm64 dependency set ships OSL 1.13 / LLVM 17, and Draco,
-rem   which has no library in the arm64 dependency set at all.
+rem   LLVM 15 while the arm64 dependency set ships OSL 1.13 / LLVM 17. Draco is
+rem   not a dependency-set problem: it is built from the source vendored in
+rem   extern/draco, so WITH_DRACO needs no arm64 library.
 rem   lite is the round-20 feature set (EEVEE/Workbench only), kept so a
 rem   regression can be bisected against a known-good configuration.
 setlocal
@@ -38,7 +39,10 @@ rem
 rem WITH_TBB_MALLOC_PROXY is off because TBB's allocator replacement is not
 rem supported on Windows ARM64 (it prints "skip allocation functions
 rem replacement in ucrtbase.dll" and does nothing).
-set "COMMON=-DWITH_PYTHON_INSTALL=ON -DWITH_PYTHON_INSTALL_NUMPY=OFF -DWITH_DRACO=OFF -DWITH_TBB_MALLOC_PROXY=OFF -DWITH_WINDOWS_FIND_MODULES=OFF -DWITH_FFMPEG=ON"
+rem WITH_DRACO builds extern_draco.dll from extern/draco and installs it into
+rem 3.6/python/lib/site-packages, which is where io_scene_gltf2 loads it from on
+rem Windows. It requires WITH_PYTHON_INSTALL, which is already on.
+set "COMMON=-DWITH_PYTHON_INSTALL=ON -DWITH_PYTHON_INSTALL_NUMPY=OFF -DWITH_DRACO=ON -DWITH_TBB_MALLOC_PROXY=OFF -DWITH_WINDOWS_FIND_MODULES=OFF -DWITH_FFMPEG=ON"
 
 if /I "%FEATURES%"=="lite" goto :lite
 if /I "%FEATURES%"=="full" goto :full

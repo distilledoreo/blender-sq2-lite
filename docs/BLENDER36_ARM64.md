@@ -59,7 +59,7 @@ Two consequences worth recording:
 
 | file | what it is |
 | --- | --- |
-| `tools/blender36/bridge/sq2_legacy_bridge.py` | 3.6 startup module: fixes engine + view transform on load, adds `File > Save 3.6 Copy` (`wm.save_36_copy`), reports what happened |
+| `tools/blender36/bridge/sq2_legacy_bridge.py` | 3.6 startup module: repairs EEVEE Next/AgX on load, and hands **every save** to Blender 4.5 so the file on disk is always 4.5 format |
 | `tools/blender36/install_bridge.py` | copies the module into `<3.6 install>/3.6/scripts/startup/` |
 | `tools/blender36/blender36.cmd` | launcher: finds the 3.6 install, keeps the bridge in sync, runs it with your arguments |
 | `tools/blender36/blend_stamp.py` | reads/rewrites the `-vXXX` header stamp (diagnostic) |
@@ -68,16 +68,39 @@ Two consequences worth recording:
 
 Behaviour:
 
-- `BLENDER_EEVEE_NEXT` → `BLENDER_EEVEE`. Note 3.6 falls back on its own at
-  load time, so the `Engine 'BLENDER_EEVEE_NEXT' not available` error line is
-  expected and unavoidable without patching 3.6's reader.
-- AgX → Filmic. 3.6 has already reset the unknown transform to `Standard` by
-  the time the handler runs, so the bridge checks the file bytes for the
-  string `AgX` (`_file_mentions_agx`) and only then switches to Filmic.
-- `SQ2_AUTO_SAVE=1` writes `<name>.v36.blend` next to the opened file; the
-  `wm.save_36_copy` operator does the same on demand.
+- **Files are assumed to be 4.5**, so the repair runs on every load, not only
+  when the stamp looks newer. There is no 3.6 output path at all: the old
+  `File > Save 3.6 Copy` operator and `SQ2_AUTO_SAVE` are gone.
+- `BLENDER_EEVEE_NEXT` → `BLENDER_EEVEE`. 3.6 falls back on its own at load
+  time, so the `Engine 'BLENDER_EEVEE_NEXT' not available` error line is
+  expected; the original name is only recoverable from the file bytes
+  (`_file_mentions(path, "BLENDER_EEVEE_NEXT")`).
+- AgX → Filmic, recovered the same way: 3.6 has already reset the unknown
+  transform to `Standard` when `load_post` runs, so the bridge scans the file
+  for `AgX\0` before switching to Filmic.
+- Both names are remembered per scene, and the 4.5 step puts them back after
+  loading the 3.6 file, so a round trip returns an EEVEE Next / AgX 4.5 file
+  rather than a permanently downgraded one.
+- **Saving**: `save_post` hands the file 3.6 just wrote to `BLENDER45_EXE
+  -b <file> --factory-startup --python <script>`, which re-saves it 4.5 and
+  replaces the original (`os.replace`, so it is atomic). If no 4.5 binary is
+  found the save still succeeds and a loud `SQ2-BRIDGE: ERROR no Blender 4.5`
+  line is printed — the file is then left in 3.6 format, which is the one
+  outcome this bridge is supposed to avoid.
+- **Appends**: 3.6 has no append/link handler, so `depsgraph_update_post`
+  does a cheap engine check and records any EEVEE Next scene it can still see.
+  3.6 normally resets the name during the append itself, leaving nothing to
+  recover locally; the following save still rewrites the whole file (appended
+  data included) as 4.5.
+- `BLENDER45_EXE` points at the 4.5 binary; unset, the bridge looks for a
+  `blender-4.*` directory next to the 3.6 install. `SQ2_NO_45_SAVE=1` leaves
+  saves in 3.6 format (diagnostic only).
 - Every run prints `SQ2-BRIDGE:` lines, so the conversion is visible in logs
   instead of happening silently.
+
+The transcript below is from the round-20 bridge, which still wrote 3.6
+copies (`SQ2_AUTO_SAVE=1`, `.v36.blend`); the fixups it shows are the ones the
+current bridge performs.
 
 ### Verified on the native ARM64 build
 
@@ -208,15 +231,20 @@ bisect target.
 `full` enables Cycles (CPU, Embree), USD, Alembic, OpenVDB, OpenSubdiv,
 OpenImageDenoise, Collada, Potrace, Boost, OpenXR and FFmpeg. Collada needs
 `WITH_OPENCOLLADA`; `WITH_COLLADA` is not a 3.6 CMake option and is silently
-ignored, which is why rounds up to 40 reported `collada=False`. Two things are
+ignored, which is why rounds up to 40 reported `collada=False`. One thing is
 still off, for dependency reasons rather than choice:
 
 - **OpenShadingLanguage.** 3.6's OSL glue targets OSL 1.12 / LLVM 15; the only
   ARM64 libraries available are OSL 1.13 / LLVM 17, so Cycles would need a
   port, not a flag.
-- **Draco.** There is no `draco` directory in the 4.2 ARM64 dependency set at
-  all, so glTF compression stays unavailable (`Draco mesh compression is not
-  available` is logged, and glTF still exports everything else).
+
+Draco is **on**. It was reported as missing because the 4.2 ARM64 dependency
+set has no `draco` directory — but 3.6 does not use a prebuilt Draco anyway:
+it vendors the source in `extern/draco` and builds `draco` + `extern_draco`
+itself. `WITH_DRACO=ON` (its default; the CI configuration had turned it off)
+compiles it and installs `extern_draco.dll` into
+`3.6/python/lib/site-packages`, which is exactly where `io_scene_gltf2`'s
+`dll_path()` looks on Windows.
 
 GPU device backends stay off on purpose: there are no CUDA/OptiX/HIP/oneAPI/
 Metal drivers on Windows ARM64, and 4.2 disables CUDA/HIP there too.
@@ -262,6 +290,17 @@ export failed on the lite artifact with `module 'numpy' has no attribute
   (shadow/render properties added in 4.2+) and video sequencer data were not
   tested.
 - Rendering quality after the AgX→Filmic change was not compared.
+- **The 4.5 save path cannot be exercised in CI.** The runner has no Blender
+  4.5 build, so the smoke test asserts the *fallback*: the bridge loads from
+  `3.6/scripts/startup`, `save_post` reaches the conversion step, the save
+  still succeeds, and the error names the missing binary. The actual 4.5
+  re-save and the EEVEE Next/AgX restoration are only checked on the SQ2.
+- **Appends are partially covered.** Appended object data needs no fixup, but
+  an appended *scene* has its engine and view transform reset by 3.6 during
+  the append, before any handler can see the original names.
+- **Draco** is now compiled and its glTF round trip is asserted in CI
+  (`DRACODLL`, `DRACOEXPORT`, `DRACOOK`), but no other application has opened
+  the compressed output yet.
 
 ## 5. History of the port
 

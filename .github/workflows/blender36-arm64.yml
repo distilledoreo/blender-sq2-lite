@@ -245,6 +245,13 @@ jobs:
           & $py "$env:GITHUB_WORKSPACE\custom-driver\blender36\stage_runtime.py" --tree "C:\b\build\bin" --lib "C:\b\lib\windows_arm64"
           if ($LASTEXITCODE -ne 0) { throw "staging left unresolved DLL dependencies" }
 
+          # The 4.5 bridge ships inside the artifact: install_bridge.py copies
+          # it into 3.6/scripts/startup, which Blender imports at boot, so no
+          # add-on has to be enabled and every save goes through 4.5.
+          & $py "$env:GITHUB_WORKSPACE\tools\blender36\install_bridge.py" "C:\b\build\bin"
+          if ($LASTEXITCODE -ne 0) { throw "bridge install failed" }
+          if (-not (Test-Path "C:\b\build\bin\3.6\scripts\startup\sq2_legacy_bridge.py")) { throw "bridge missing from 3.6\scripts\startup" }
+
           Get-ChildItem C:\b\build\bin | Select-Object Name, Length | Format-Table -AutoSize
           # It is a console subsystem exe, but a GUI build here would not be
           # waited for by `&`, so wait explicitly and read the exit code.
@@ -291,7 +298,17 @@ jobs:
             'dae = os.path.join(tmp, "arm64-smoke.dae")',
             'bpy.ops.wm.collada_export(filepath=dae)',
             "print('COLLADAOK', os.path.getsize(dae))",
-            'os.remove(dae)'
+            'os.remove(dae)',
+            '# Draco: the add-on loads 3.6/python/lib/site-packages/extern_draco.dll',
+            '# and reports it missing otherwise, so the round trip is the assertion.',
+            'draco_dll = os.path.join(os.path.dirname(bpy.app.binary_path), "3.6", "python", "lib", "site-packages", "extern_draco.dll")',
+            "print('DRACODLL', os.path.isfile(draco_dll))",
+            'dglb = os.path.join(tmp, "arm64-draco.glb")',
+            'bpy.ops.export_scene.gltf(filepath=dglb, export_format="GLB", export_draco_mesh_compression_enable=True, export_draco_mesh_compression_level=6)',
+            "print('DRACOEXPORT', os.path.getsize(dglb))",
+            'bpy.ops.import_scene.gltf(filepath=dglb)',
+            "print('DRACOOK', len(bpy.data.objects))",
+            'os.remove(dglb)'
           )
           Set-Content -Path $checkPy -Value $lines -Encoding ascii
           # Keep the whole output: filtering it for the markers hides the
@@ -300,7 +317,7 @@ jobs:
           $pyLog = "C:\b\build\bin\pycheck.log"
           & "C:\b\build\bin\blender.exe" -b --factory-startup --python-exit-code 13 --python $checkPy *> $pyLog
           $pyCode = $LASTEXITCODE
-          Get-Content $pyLog | Select-String "PYOK|NUMPYOK|FEATURES|CYCLESOK|FBXOK|GLTFOK|COLLADAOK"
+          Get-Content $pyLog | Select-String "PYOK|NUMPYOK|FEATURES|CYCLESOK|FBXOK|GLTFOK|COLLADAOK|DRACODLL|DRACOEXPORT|DRACOOK"
           if ($pyCode -ne 0) {
             # `Select-Object` output did not survive the step failure in round
             # 39, so hand the whole file to Write-Host as one value.
@@ -318,6 +335,11 @@ jobs:
           $numpyExt = @(Get-ChildItem "C:\b\build\bin\3.6\python\lib\site-packages\numpy\core\_multiarray_umath*.pyd" -ErrorAction SilentlyContinue)
           if ($numpyExt.Count -lt 1) { throw "install tree is missing numpy's _multiarray_umath extension" }
 
+          # Draco is compiled from the vendored extern/draco source; on Windows
+          # the install rule drops it beside Python's site-packages, which is
+          # the path io_scene_gltf2's dll_path() builds.
+          if (-not (Test-Path "C:\b\build\bin\3.6\python\lib\site-packages\extern_draco.dll")) { throw "install tree is missing extern_draco.dll (WITH_DRACO)" }
+
           # `datafiles/icons` holds the vector icons for the tool buttons in the
           # 3D viewport toolbar (188 `.dat` files, one per `ICON_GEOM_NAMES`
           # entry). 3.6 loads them from disk at draw time, so a missing
@@ -327,6 +349,34 @@ jobs:
           $geomIcons = @(Get-ChildItem "C:\b\build\bin\3.6\datafiles\icons\*.dat" -ErrorAction SilentlyContinue)
           if ($geomIcons.Count -lt 188) { throw "3.6\datafiles\icons has $($geomIcons.Count) geometry icons, expected 188" }
           if (-not (Test-Path "C:\b\build\bin\3.6\datafiles\studiolights")) { throw "install tree is missing 3.6\datafiles\studiolights" }
+
+          # Bridge behaviour, without --factory-startup so this is exactly what a
+          # user gets at boot. The runner has no Blender 4.5, so the save must
+          # still succeed and report the missing binary instead of throwing.
+          $probe = "C:\b\build\bin\bridge_probe.py"
+          $probeLines = @(
+            'import os',
+            'import bpy',
+            'path = os.path.join(os.path.dirname(bpy.app.binary_path), "bridge-probe.blend")',
+            'bpy.ops.wm.save_as_mainfile(filepath=path)',
+            'with open(path, "rb") as handle:',
+            '    stamp = handle.read(12)[7:12].decode()',
+            "print('SAVEDSTAMP', stamp)",
+            'os.remove(path)'
+          )
+          Set-Content -Path $probe -Value $probeLines -Encoding ascii
+          $bridgeLog = "C:\b\build\bin\bridge.log"
+          & "C:\b\build\bin\blender.exe" -b --python-exit-code 13 --python $probe *> $bridgeLog
+          $bridgeCode = $LASTEXITCODE
+          Get-Content $bridgeLog | Select-String "SQ2-BRIDGE|SAVEDSTAMP"
+          if ($bridgeCode -ne 0) {
+            Write-Host (Get-Content $bridgeLog -Raw)
+            throw "bridge probe exited $bridgeCode"
+          }
+          if (-not (Select-String -Path $bridgeLog -Pattern "SQ2-BRIDGE: active" -Quiet)) { throw "bridge not loaded from 3.6\scripts\startup" }
+          if (-not (Select-String -Path $bridgeLog -Pattern "SAVEDSTAMP -v306" -Quiet)) { throw "bridge probe did not save a file" }
+          if (-not (Select-String -Path $bridgeLog -Pattern "SQ2-BRIDGE: ERROR no Blender 4.5" -Quiet)) { throw "save_post did not reach the 4.5 conversion step" }
+          Remove-Item $probe, $bridgeLog -Force -ErrorAction SilentlyContinue
 
       - name: Upload blender.exe
         if: ${{ !inputs.configure_only && always() }}
